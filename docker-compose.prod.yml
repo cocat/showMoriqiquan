@@ -1,0 +1,27 @@
+# 生产环境：前后端一起跑，适合云主机一键启动
+# 使用：在服务器上 clone 后，配置 .env 再执行 docker compose -f docker-compose.prod.yml up -d
+
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_SKIP_CLERK: ${NEXT_PUBLIC_SKIP_CLERK:-false}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+    ports:
+      - "3000:3000"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - backend
