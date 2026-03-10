@@ -1,14 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { reportsApi, isNetworkError, API_URL } from '@/lib/api'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, TrendingUp, AlertCircle } from 'lucide-react'
-
-const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
 
 interface CalendarData {
   year: number
@@ -151,13 +148,5 @@ function ReportsCalendarContent({ getToken }: { getToken: () => Promise<string |
 }
 
 export default function ReportsPage() {
-  if (skipClerk) {
-    return <ReportsCalendarContent getToken={async () => null} />
-  }
-  return <ReportsCalendarWithAuth />
-}
-
-function ReportsCalendarWithAuth() {
-  const { getToken } = useAuth()
-  return <ReportsCalendarContent getToken={getToken} />
+  return <ReportsCalendarContent getToken={async () => null} />
 }

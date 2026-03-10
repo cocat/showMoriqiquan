@@ -12,8 +12,8 @@ from models.user import User, UserTier
 
 security = HTTPBearer(auto_error=False)
 
-# 与前端 NEXT_PUBLIC_SKIP_CLERK 对应：为 true 时不校验 JWT，直接视为 admin，暴露全部报告与完整页面
-SKIP_CLERK = os.getenv("SKIP_CLERK", "").strip().lower() == "true"
+# 默认完全开放：不校验 JWT，直接视为 admin。设为 "false" 可恢复 Clerk 校验
+SKIP_CLERK = os.getenv("SKIP_CLERK", "true").strip().lower() == "true"
 
 CLERK_PEM_PUBLIC_KEY = os.getenv("CLERK_PEM_PUBLIC_KEY", "")
 CLERK_ISSUER = os.getenv("CLERK_ISSUER", "")

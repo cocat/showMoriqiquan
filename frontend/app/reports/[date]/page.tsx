@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { useAuth } from '@clerk/nextjs'
 import { reportsApi } from '@/lib/api'
 
-const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
 import { TrendingUp, AlertCircle } from 'lucide-react'
 import { navIds } from '@/lib/design-tokens'
 import { SentimentDashboard } from '@/app/components/report/SentimentDashboard'
@@ -126,13 +124,5 @@ function ReportDetailContent({ getToken }: { getToken: () => Promise<string | nu
 }
 
 export default function ReportDetailPage() {
-  if (skipClerk) {
-    return <ReportDetailContent getToken={async () => null} />
-  }
-  return <ReportDetailWithAuth />
-}
-
-function ReportDetailWithAuth() {
-  const { getToken } = useAuth()
-  return <ReportDetailContent getToken={getToken} />
+  return <ReportDetailContent getToken={async () => null} />
 }

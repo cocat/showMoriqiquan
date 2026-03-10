@@ -28,10 +28,11 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 # 填写 NEXT_PUBLIC_API_URL、NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY、CLERK_SECRET_KEY
 
-# 2. 启动后端
+# 2. 启动后端（必须在 backend 目录下运行，否则会报 Could not import module "main"）
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
+# 或在项目根目录执行: ./run-backend.sh
 
 # 3. 启动前端（新终端）
 cd frontend

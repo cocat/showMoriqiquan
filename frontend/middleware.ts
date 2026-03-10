@@ -1,11 +1,8 @@
-import { clerkMiddleware } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
-
-export default skipClerk
-  ? () => NextResponse.next()
-  : clerkMiddleware()
+export default function middleware() {
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [

@@ -1,12 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser, useAuth } from '@clerk/nextjs'
 import Link from 'next/link'
 import { usersApi, isNetworkError } from '@/lib/api'
 import { TrendingUp, User as UserIcon, Crown, Calendar } from 'lucide-react'
-
-const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
 
 /** 与 Clerk useUser().user 兼容：firstName 允许 null */
 interface DashboardUserProps {
@@ -185,34 +182,5 @@ function DashboardContent({ user, getToken }: DashboardUserProps) {
 }
 
 export default function DashboardPage() {
-  if (skipClerk) {
-    return (
-      <div className="min-h-screen" style={{ background: '#1A1A1B' }}>
-        <nav className="border-b border-[#3A3A3A] bg-[#1A1A1B]/95 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-14">
-              <Link href="/" className="flex items-center gap-2">
-                <TrendingUp className="w-7 h-7 text-[#C19A6B]" />
-                <span className="text-lg font-bold text-[#E5E5E5]">mentat vision</span>
-              </Link>
-              <Link href="/reports" className="text-[#999] hover:text-[#E5E5E5]">查看报告</Link>
-            </div>
-          </div>
-        </nav>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-[#999] mb-6">认证已关闭，请前往报告页面</p>
-          <Link href="/reports" className="inline-block px-4 py-2 bg-[#C19A6B] text-[#1A1A1B] rounded hover:bg-[#d4af7a] transition">
-            查看报告
-          </Link>
-        </div>
-      </div>
-    )
-  }
-  return <DashboardWithAuth />
-}
-
-function DashboardWithAuth() {
-  const { user } = useUser()
-  const { getToken } = useAuth()
-  return <DashboardContent user={user} getToken={getToken} />
+  return <DashboardContent user={null} getToken={async () => null} />
 }
