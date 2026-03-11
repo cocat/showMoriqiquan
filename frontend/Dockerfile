@@ -2,8 +2,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 COPY . .
+# 若无 public 目录，COPY 会报错，先确保存在
+RUN mkdir -p public
 # 构建时注入的变量会打进静态资源，运行时再通过 NEXT_PUBLIC_API_URL 等覆盖需用 runtime 方案或同域名代理
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SKIP_CLERK
