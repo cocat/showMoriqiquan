@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, initial-scale=1.0">
+    <title>门塔特的视界 UI Design System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'NotoSansHans-Regular';
+            src: url('https://assets-persist.lovart.ai/agent-static-assets/NotoSansHans-Regular.otf');
+        }
+        @font-face {
+            font-family: 'NotoSansHans-Bold';
+            src: url('https://assets-persist.lovart.ai/agent-static-assets/NotoSansHans-Bold.otf');
+        }
+        @font-face {
+            font-family: 'NotoSansHans-Medium';
+            src: url('https://assets-persist.lovart.ai/agent-static-assets/NotoSansHans-Medium.otf');
+        }
+
+        :root {
+            --primary-red: #D32F2F;
+            --secondary-blue: #1A237E;
+            --secondary-orange: #FF6F00;
+            --secondary-green: #2E7D32;
+            --secondary-yellow: #FBC02D;
+            --neutral-900: #212121;
+            --neutral-700: #616161;
+            --neutral-500: #9E9E9E;
+            --neutral-300: #E0E0E0;
+            --neutral-100: #F5F5F5;
+            --white: #FFFFFF;
+            
+            --sidebar-width: 320px;
+            --content-width: calc(1920px - var(--sidebar-width));
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'NotoSansHans-Regular', sans-serif;
+            background-color: var(--white);
+            color: var(--neutral-900);
+            width: 1920px;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: #121212;
+            color: #E0E0E0;
+            padding: 40px 30px;
+            position: fixed;
+            height: 100%;
+            border-right: 1px solid #333;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 60px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .brand-name {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 20px;
+            color: var(--white);
+        }
+
+        .nav-group {
+            margin-bottom: 32px;
+        }
+
+        .nav-title {
+            font-family: 'NotoSansHans-Medium';
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            color: #CCC;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--white);
+        }
+
+        .nav-item i {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            width: var(--content-width);
+            padding: 60px 80px;
+            background-color: #FAFAFA;
+        }
+
+        .header {
+            margin-bottom: 60px;
+            border-bottom: 1px solid var(--neutral-300);
+            padding-bottom: 40px;
+        }
+
+        .page-title {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--neutral-900);
+        }
+
+        .page-desc {
+            font-size: 18px;
+            color: var(--neutral-700);
+            max-width: 800px;
+            line-height: 1.6;
+        }
+
+        /* Section Styling */
+        .section {
+            margin-bottom: 80px;
+            scroll-margin-top: 40px;
+        }
+
+        .section-title {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 32px;
+            margin-bottom: 32px;
+            padding-left: 16px;
+            border-left: 6px solid var(--primary-red);
+        }
+
+        .subsection {
+            margin-bottom: 48px;
+        }
+
+        .subsection-title {
+            font-family: 'NotoSansHans-Medium';
+            font-size: 20px;
+            margin-bottom: 24px;
+            color: var(--neutral-900);
+        }
+
+        /* Color Palette */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 24px;
+        }
+
+        .color-card {
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--neutral-300);
+        }
+
+        .color-swatch {
+            height: 120px;
+            width: 100%;
+        }
+
+        .color-info {
+            padding: 16px;
+        }
+
+        .color-name {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .color-hex {
+            font-family: 'monospace';
+            color: var(--neutral-500);
+            font-size: 14px;
+        }
+
+        /* Typography */
+        .type-scale-list {
+            background: var(--white);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--neutral-300);
+        }
+
+        .type-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--neutral-100);
+            padding-bottom: 24px;
+        }
+        .type-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .type-meta {
+            width: 200px;
+            color: var(--neutral-500);
+            font-family: 'monospace';
+            font-size: 14px;
+        }
+
+        .type-sample {
+            color: var(--neutral-900);
+        }
+
+        /* Grid & Spacing */
+        .spacing-demo {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .spacing-box {
+            background: rgba(211, 47, 47, 0.1);
+            border: 1px dashed var(--primary-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-red);
+            font-weight: bold;
+            font-family: 'monospace';
+        }
+
+        /* Component Library */
+        .component-card {
+            background: var(--white);
+            border: 1px solid var(--neutral-300);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 32px;
+            display: flex;
+        }
+
+        .comp-preview {
+            flex: 1;
+            padding: 60px;
+            background-color: #F5F7FA;
+            background-image: radial-gradient(#E1E4E8 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--neutral-300);
+        }
+
+        .comp-details {
+            width: 400px;
+            padding: 32px;
+        }
+
+        .comp-name {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .comp-desc {
+            font-size: 14px;
+            color: var(--neutral-700);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .prop-table {
+            width: 100%;
+            font-size: 13px;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+        .prop-table td {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--neutral-300);
+        }
+        .prop-label {
+            color: var(--neutral-500);
+            width: 100px;
+        }
+        .prop-value {
+            font-family: 'monospace';
+            color: var(--secondary-blue);
+        }
+
+        .code-block {
+            background: #263238;
+            color: #ECEFF1;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'monospace';
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+
+        /* Actual UI Components for Preview */
+        .ui-card-news {
+            background: white;
+            width: 340px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            overflow: hidden;
+            font-family: 'NotoSansHans-Regular';
+        }
+        .ui-news-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .ui-badge-100 {
+            background: var(--primary-red);
+            color: white;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .ui-tag-category {
+            border: 1px solid var(--neutral-300);
+            color: var(--neutral-700);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .ui-news-title {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 16px;
+            line-height: 1.4;
+            color: var(--neutral-900);
+            margin-bottom: 8px;
+        }
+        .ui-news-summary {
+            font-size: 13px;
+            color: var(--neutral-700);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .ui-mood-tag {
+            display: inline-flex;
+            align-items: center;
+            background: #E8EAF6;
+            color: var(--secondary-blue);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .ui-mood-tag i { margin-right: 4px; }
+
+        .ui-card-data {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            text-align: center;
+            min-width: 160px;
+        }
+        .ui-data-value {
+            font-family: 'NotoSansHans-Bold';
+            font-size: 48px;
+            color: var(--primary-red);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .ui-data-label {
+            font-size: 14px;
+            color: var(--neutral-700);
+        }
+
+        .ui-progress-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            width: 300px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .ui-prog-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .ui-prog-bar-bg {
+            height: 6px;
+            background: var(--neutral-100);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .ui-prog-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF6F00, #FBC02D);
+            width: 75%;
+        }
+
+        /* Page Spec Layouts */
+        .page-spec-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+        }
+
+        .page-spec-item {
+            background: var(--white);
+            border: 1px solid var(--neutral-300);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .spec-frame {
+            border: 2px solid var(--neutral-900);
+            height: 400px;
+            position: relative;
+            background: #FAFAFA;
+            margin-bottom: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .spec-annotation {
+            color: #E91E63;
+            font-family: 'monospace';
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .spec-annotation i { font-size: 14px; }
+
+        /* Mockup Elements within Spec Frame */
+        .mock-header { height: 40px; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 10px; font-size: 10px; color: #999; }
+        .mock-hero { height: 120px; background: rgba(211, 47, 47, 0.1); display: flex; align-items: center; justify-content: center; border-bottom: 1px dashed var(--primary-red); }
+        .mock-hero-text { color: var(--primary-red); font-weight: bold; }
+        .mock-grid { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mock-card { height: 60px; background: white; border: 1px solid #eee; border-radius: 4px; }
+        .mock-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .mock-row { height: 40px; background: white; border: 1px solid #eee; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; }
+        
+        .dim-line-v {
+            position: absolute;
+            right: 10px;
+            top: 40px;
+            height: 120px;
+            border-left: 1px dashed #E91E63;
+            display: flex;
+            align-items: center;
+        }
+        .dim-label {
+            background: #E91E63;
+            color: white;
+            padding: 2px 4px;
+            font-size: 10px;
+            margin-left: 4px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="brand">
+            <img src="https://a.lovart.ai/artifacts/user/WpShk6CiwrDLXryu.png" alt="Logo" class="brand-logo">
+            <span class="brand-name">门塔特的视界</span>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-title">概览 Overview</div>
+            <a href="#" class="nav-item active"><i class="ri-dashboard-line"></i> 介绍 Introduction</a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-title">设计系统 Foundation</div>
+            <a href="#colors" class="nav-item"><i class="ri-palette-line"></i> 色彩 Colors</a>
+            <a href="#typography" class="nav-item"><i class="ri-text"></i> 字体 Typography</a>
+            <a href="#spacing" class="nav-item"><i class="ri-layout-grid-line"></i> 间距 & 网格 Spacing</a>
+            <a href="#radius" class="nav-item"><i class="ri-shape-2-line"></i> 圆角 Radius</a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-title">组件库 Components</div>
+            <a href="#comp-logo" class="nav-item"><i class="ri-image-line"></i> 标识 Logo</a>
+            <a href="#comp-cards" class="nav-item"><i class="ri-id-card-line"></i> 卡片 Cards</a>
+            <a href="#comp-elements" class="nav-item"><i class="ri-toggle-line"></i> 元素 Elements</a>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-title">页面规范 Pages</div>
+            <a href="#page-specs" class="nav-item"><i class="ri-pages-line"></i> 页面布局 Layouts</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="header">
+            <h1 class="page-title">设计系统规范文档 v1.0</h1>
+            <p class="page-desc">
+                本设计系统旨在为"门塔特的视界"小红书推广内容提供统一的视觉语言。
+                通过标准化的色彩、字体、组件和布局规范，确保品牌输出的一致性与专业度。
+            </p>
+        </header>
+
+        <!-- Color System -->
+        <section id="colors" class="section">
+            <h2 class="section-title">色彩规范 Color Palette</h2>
+            <div class="subsection">
+                <h3 class="subsection-title">品牌主色 Primary Brand</h3>
+                <div class="color-grid">
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--primary-red);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Brand Red</div>
+                            <div class="color-hex">#D32F2F</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">辅助色 Secondary & Functional</h3>
+                <div class="color-grid">
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--secondary-blue);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Deep Blue</div>
+                            <div class="color-hex">#1A237E</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--secondary-orange);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Active Orange</div>
+                            <div class="color-hex">#FF6F00</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--secondary-green);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Success Green</div>
+                            <div class="color-hex">#2E7D32</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--secondary-yellow);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Warning Yellow</div>
+                            <div class="color-hex">#FBC02D</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="subsection">
+                <h3 class="subsection-title">中性色 Neutrals</h3>
+                <div class="color-grid">
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--neutral-900);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Black 900</div>
+                            <div class="color-hex">#212121</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--neutral-700);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Gray 700</div>
+                            <div class="color-hex">#616161</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--neutral-500);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Gray 500</div>
+                            <div class="color-hex">#9E9E9E</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--neutral-300);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Gray 300</div>
+                            <div class="color-hex">#E0E0E0</div>
+                        </div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-swatch" style="background-color: var(--neutral-100);"></div>
+                        <div class="color-info">
+                            <div class="color-name">Gray 100</div>
+                            <div class="color-hex">#F5F5F5</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Typography -->
+        <section id="typography" class="section">
+            <h2 class="section-title">字体规范 Typography</h2>
+            <div class="type-scale-list">
+                <div class="type-row">
+                    <div class="type-meta">Display H1 <br> 72px / Bold</div>
+                    <div class="type-sample" style="font-size: 72px; font-family: 'NotoSansHans-Bold';">警觉指数 58</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Heading H2 <br> 48px / Bold</div>
+                    <div class="type-sample" style="font-size: 48px; font-family: 'NotoSansHans-Bold';">数据概览页面</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Heading H3 <br> 32px / Bold</div>
+                    <div class="type-sample" style="font-size: 32px; font-family: 'NotoSansHans-Bold';">今日重点新闻</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Title T1 <br> 24px / Medium</div>
+                    <div class="type-sample" style="font-size: 24px; font-family: 'NotoSansHans-Medium';">科技巨头发布新模型</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Body B1 <br> 16px / Regular</div>
+                    <div class="type-sample" style="font-size: 16px; line-height: 1.5;">这是正文内容展示，使用16px字号。门塔特的视界致力于提供深度的信息分析与情报整合，帮助用户在信息洪流中保持清醒。</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Caption C1 <br> 14px / Regular</div>
+                    <div class="type-sample" style="font-size: 14px; color: var(--neutral-700);">辅助说明文字，通常用于标签或次要信息。</div>
+                </div>
+                <div class="type-row">
+                    <div class="type-meta">Tiny C2 <br> 12px / Regular</div>
+                    <div class="type-sample" style="font-size: 12px; color: var(--neutral-500);">2023-10-24 10:00 AM</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Spacing & Radius -->
+        <section id="spacing" class="section">
+            <h2 class="section-title">间距与圆角 Spacing & Radius</h2>
+            <div class="subsection">
+                <h3 class="subsection-title">8px 网格系统</h3>
+                <div class="spacing-demo">
+                    <div class="spacing-box" style="width: 8px; height: 8px;">8</div>
+                    <div class="spacing-box" style="width: 16px; height: 16px;">16</div>
+                    <div class="spacing-box" style="width: 24px; height: 24px;">24</div>
+                    <div class="spacing-box" style="width: 32px; height: 32px;">32</div>
+                    <div class="spacing-box" style="width: 40px; height: 40px;">40</div>
+                    <div class="spacing-box" style="width: 48px; height: 48px;">48</div>
+                    <div class="spacing-box" style="width: 64px; height: 64px;">64</div>
+                    <div class="spacing-box" style="width: 80px; height: 80px;">80</div>
+                </div>
+            </div>
+            <div class="subsection">
+                <h3 class="subsection-title">圆角规范</h3>
+                <div class="spacing-demo">
+                    <div class="spacing-box" style="width: 60px; height: 60px; border-radius: 4px; border-style: solid; background: white; color: black;">4px</div>
+                    <div class="spacing-box" style="width: 80px; height: 80px; border-radius: 8px; border-style: solid; background: white; color: black;">8px</div>
+                    <div class="spacing-box" style="width: 100px; height: 100px; border-radius: 12px; border-style: solid; background: white; color: black;">12px</div>
+                    <div class="spacing-box" style="width: 120px; height: 120px; border-radius: 16px; border-style: solid; background: white; color: black;">16px</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Components -->
+        <section id="comp-cards" class="section">
+            <h2 class="section-title">组件库 Component Library</h2>
+
+            <!-- Logo Component -->
+            <div class="component-card" id="comp-logo">
+                <div class="comp-preview">
+                    <div style="text-align: center;">
+                        <img src="https://a.lovart.ai/artifacts/user/WpShk6CiwrDLXryu.png" style="width: 120px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <div style="margin-top: 12px; font-family: 'NotoSansHans-Bold';">Logo Variant A</div>
+                    </div>
+                </div>
+                <div class="comp-details">
+                    <h3 class="comp-name">Logo 品牌标识</h3>
+                    <p class="comp-desc">标准品牌Logo，用于页头、封面及品牌宣发场景。</p>
+                    <table class="prop-table">
+                        <tr><td class="prop-label">Size</td><td class="prop-value">Variable (min 40px)</td></tr>
+                        <tr><td class="prop-label">Radius</td><td class="prop-value">8px / 12px</td></tr>
+                        <tr><td class="prop-label">Shadow</td><td class="prop-value">sm / md</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- News Card Component -->
+            <div class="component-card">
+                <div class="comp-preview">
+                    <div class="ui-card-news">
+                        <div style="padding: 20px;">
+                            <div class="ui-news-header">
+                                <span class="ui-tag-category">人工智能</span>
+                                <span class="ui-badge-100">100分</span>
+                            </div>
+                            <div class="ui-news-title">OpenAI发布最新Sora模型，视频生成领域迎来重大突破</div>
+                            <div class="ui-news-summary">该模型能够根据文本指令生成长达一分钟的高清视频，引发行业热议...</div>
+                            <div class="ui-mood-tag">
+                                <i class="ri-pulse-line"></i> 行业震动
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comp-details">
+                    <h3 class="comp-name">News Card 新闻卡片</h3>
+                    <p class="comp-desc">用于"今日重点"或新闻列表页，展示单条新闻的核心信息。</p>
+                    <table class="prop-table">
+                        <tr><td class="prop-label">Padding</td><td class="prop-value">20px</td></tr>
+                        <tr><td class="prop-label">Radius</td><td class="prop-value">12px</td></tr>
+                        <tr><td class="prop-label">Bg Color</td><td class="prop-value">#FFFFFF</td></tr>
+                    </table>
+                    <div class="code-block">
+.news-card {
+  background: #FFF;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Card Component -->
+            <div class="component-card">
+                <div class="comp-preview">
+                    <div style="display: flex; gap: 24px;">
+                        <div class="ui-card-data">
+                            <div class="ui-data-value">58</div>
+                            <div class="ui-data-label">警觉指数</div>
+                        </div>
+                        <div class="ui-card-data">
+                            <div class="ui-data-value" style="color: var(--secondary-blue);">207</div>
+                            <div class="ui-data-label">更新条数</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comp-details">
+                    <h3 class="comp-name">Data Display 数据展示</h3>
+                    <p class="comp-desc">用于封面或概览页，强调关键数值指标。</p>
+                    <table class="prop-table">
+                        <tr><td class="prop-label">Font Size</td><td class="prop-value">48px / 72px</td></tr>
+                        <tr><td class="prop-label">Weight</td><td class="prop-value">Bold</td></tr>
+                        <tr><td class="prop-label">Align</td><td class="prop-value">Center</td></tr>
+                    </table>
+                    <div class="code-block">
+.data-value {
+  font-size: 48px;
+  color: var(--primary-red);
+  font-weight: 700;
+  line-height: 1;
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic/Progress Component -->
+            <div class="component-card">
+                <div class="comp-preview">
+                    <div class="ui-progress-card">
+                        <div class="ui-prog-header">
+                            <span>AIGC应用落地</span>
+                            <span style="color: var(--secondary-orange);">Hot</span>
+                        </div>
+                        <div class="ui-prog-bar-bg">
+                            <div class="ui-prog-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="comp-details">
+                    <h3 class="comp-name">Topic Heat 话题热度</h3>
+                    <p class="comp-desc">展示话题关注度的进度条组件。</p>
+                    <table class="prop-table">
+                        <tr><td class="prop-label">Height</td><td class="prop-value">6px</td></tr>
+                        <tr><td class="prop-label">Radius</td><td class="prop-value">3px</td></tr>
+                        <tr><td class="prop-label">Gradient</td><td class="prop-value">Orange -> Yellow</td></tr>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page Specs -->
+        <section id="page-specs" class="section">
+            <h2 class="section-title">页面布局规范 Page Layouts</h2>
+            
+            <div class="page-spec-container">
+                <!-- Page 1 -->
+                <div class="page-spec-item">
+                    <h3 class="subsection-title">01. 警觉指数封面页</h3>
+                    <div class="spec-frame">
+                        <div class="dim-line-v"><span class="dim-label">35% Height</span></div>
+                        <div class="mock-header">Mentat's Vision</div>
+                        <div class="mock-hero" style="flex: 1; flex-direction: column; gap: 10px;">
+                            <div class="mock-hero-text" style="font-size: 32px;">58</div>
+                            <div style="font-size: 12px; color: #666;">今日警觉指数</div>
+                            <div style="width: 60%; height: 4px; background: #ddd; border-radius: 2px;"></div>
+                        </div>
+                        <div style="height: 100px; padding: 20px; background: white;">
+                            <div style="height: 100%; border: 1px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">摘要/引导区域</div>
+                        </div>
+                    </div>
+                    <div class="spec-annotation"><i class="ri-ruler-line"></i> 核心数据居中展示，占据视觉重心</div>
+                </div>
+
+                <!-- Page 2 -->
+                <div class="page-spec-item">
+                    <h3 class="subsection-title">02. 主题热度页</h3>
+                    <div class="spec-frame">
+                        <div class="mock-header">Top Topics</div>
+                        <div class="mock-grid">
+                            <div class="mock-card"></div><div class="mock-card"></div>
+                            <div class="mock-card"></div><div class="mock-card"></div>
+                            <div class="mock-card"></div><div class="mock-card"></div>
+                            <div class="mock-card"></div><div class="mock-card"></div>
+                        </div>
+                    </div>
+                    <div class="spec-annotation"><i class="ri-layout-grid-fill"></i> 2列网格布局，卡片间距 16px</div>
+                </div>
+
+                <!-- Page 3 -->
+                <div class="page-spec-item">
+                    <h3 class="subsection-title">03. 今日重点新闻页</h3>
+                    <div class="spec-frame">
+                        <div class="mock-header">Daily Highlights</div>
+                        <div class="mock-list">
+                            <div class="mock-row" style="height: 80px; align-items: flex-start; padding-top: 10px;">
+                                <div style="width: 40px; height: 16px; background: #D32F2F; margin-right: 8px;"></div>
+                                <div style="flex: 1;">
+                                    <div style="height: 12px; width: 80%; background: #333; margin-bottom: 6px;"></div>
+                                    <div style="height: 8px; width: 100%; background: #eee;"></div>
+                                </div>
+                            </div>
+                            <div class="mock-row" style="height: 80px;"></div>
+                            <div class="mock-row" style="height: 80px;"></div>
+                        </div>
+                    </div>
+                    <div class="spec-annotation"><i class="ri-list-check"></i> 列表式布局，强调阅读效率</div>
+                </div>
+
+                <!-- Page 4 -->
+                <div class="page-spec-item">
+                    <h3 class="subsection-title">04. 引导页</h3>
+                    <div class="spec-frame" style="justify-content: center; align-items: center;">
+                        <div style="width: 80%; height: 150px; border: 1px solid #eee; margin-bottom: 20px; display: flex; align-items: center; justify-content: center;">数据回顾图表</div>
+                        <div style="width: 60%; height: 40px; background: var(--neutral-900); color: white; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px;">查看更多报告</div>
+                    </div>
+                    <div class="spec-annotation"><i class="ri-focus-3-line"></i> 强行动号召 (Call to Action)</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</body>
+</html>

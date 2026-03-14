@@ -16,7 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from routes import reports, health, users
+from routes import reports, health, users, payments
 
 app = FastAPI(
     title="moriqiquanHtml API",
@@ -78,6 +78,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 
 
 @app.get("/")

@@ -23,7 +23,7 @@ export function OptionsPanel({ data }: { data: OptionsData }) {
   const candidates = data.candidates ?? []
 
   return (
-    <section id="options" className="scroll-mt-20">
+    <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
       <div className="report-card">
         <div className="report-card-header purple">期权策略</div>
         {data.body_text && (

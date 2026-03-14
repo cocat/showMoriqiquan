@@ -26,7 +26,7 @@ export function SentimentDashboard({ data }: { data: SentimentData }) {
   const needlePercent = Math.min(100, Math.max(0, data.score ?? 0))
 
   return (
-    <section id="sentiment" className="sentiment-dashboard scroll-mt-20">
+    <section id="sentiment" className="sentiment-dashboard scroll-mt-28 xl:scroll-mt-20">
       <div className="sentiment-top">
         <div className="sentiment-left">
           <div className="sentiment-title">市场情绪指数</div>

@@ -35,7 +35,7 @@ export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
   })
 
   return (
-    <section id="market" className="scroll-mt-20">
+    <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
       <div className="report-card">
         <div className="report-card-header green">实时行情快照</div>
         <div className="snap-grid">

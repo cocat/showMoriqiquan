@@ -15,7 +15,7 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
   const [showSources, setShowSources] = useState<Record<number, boolean>>({})
 
   return (
-    <section id="briefs" className="scroll-mt-20">
+    <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
       <div className="report-card">
         <div className="report-card-header gold">新闻简报</div>
         <div style={{ padding: '14px 16px 10px' }}>

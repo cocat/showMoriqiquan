@@ -19,7 +19,7 @@ function getScoreLevel(score?: number): 'high' | 'mid' | 'low' {
 
 export function TopicComparison({ items }: { items: TopicItem[] }) {
   return (
-    <section id="topics" className="scroll-mt-20">
+    <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
       <div className="report-card">
         <div className="report-card-header blue">热点主题</div>
         <div className="tpc-grid">

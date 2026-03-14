@@ -114,7 +114,7 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
   }
 
   return (
-    <section id="alerts" className="scroll-mt-20">
+    <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
       <div className="report-card">
         {redItems.length > 0 && (
           <>
@@ -139,9 +139,34 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
           </>
         )}
         {items.length === 0 && (
-          <div className="empty-alerts" style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--faint)', fontSize: 14 }}>
-            暂无预警
-          </div>
+          <>
+            <div
+              className="alerts-section-header"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 20px',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                background: 'var(--ghost)',
+                color: 'var(--muted)',
+                borderBottom: '1px solid var(--border)',
+                borderLeft: '4px solid var(--border)',
+              }}
+            >
+              核心预警
+              <span className="section-count">0 条</span>
+            </div>
+            <div
+              className="empty-alerts"
+              style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--faint)', fontSize: 14 }}
+            >
+              今日暂无预警，市场相对平静
+            </div>
+          </>
         )}
       </div>
     </section>

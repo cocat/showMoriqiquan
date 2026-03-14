@@ -2,6 +2,7 @@
 Clerk JWT 认证中间件
 """
 import os
+from datetime import datetime
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -25,13 +26,18 @@ _ADMIN_CLERK_IDS = frozenset(
 
 
 def get_effective_tier(user: Optional[User]) -> Optional[UserTier]:
-    """返回当前用户生效的 tier；若在 ADMIN_CLERK_IDS 中则视为 admin。"""
+    """返回当前用户生效的 tier；订阅过期则降为 guest。"""
     if not user:
         return None
     if getattr(user, "tier", None) == UserTier.ADMIN:
         return UserTier.ADMIN
     if user.clerk_user_id and user.clerk_user_id in _ADMIN_CLERK_IDS:
         return UserTier.ADMIN
+    # observer/tracker 需订阅有效：无 subscription_end 或已过期则按 guest 处理
+    sub_end = getattr(user, "subscription_end", None)
+    if user.tier in (UserTier.OBSERVER, UserTier.TRACKER):
+        if not sub_end or datetime.utcnow() > sub_end:
+            return UserTier.GUEST
     return user.tier
 
 
