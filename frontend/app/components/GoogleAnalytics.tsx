@@ -10,8 +10,9 @@ function AnalyticsPageView() {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (pathname && typeof window !== 'undefined' && (window as Window & { dataLayer?: object[] }).dataLayer) {
-      ;(window as Window & { dataLayer: object[] }).dataLayer.push({
+    const w = window as unknown as { dataLayer?: object[] }
+    if (pathname && w.dataLayer) {
+      w.dataLayer.push({
         event: 'page_view',
         page_path: pathname,
         page_title: document.title,
