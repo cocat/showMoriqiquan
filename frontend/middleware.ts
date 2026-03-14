@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 const SKIP_CLERK = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
 const isProtectedRoute = createRouteMatcher(['/dashboard'])
@@ -11,7 +11,7 @@ const clerkWithProtection = clerkMiddleware(async (auth, req) => {
 })
 
 export default async function middleware(
-  req: Request,
+  req: NextRequest,
   event: unknown
 ) {
   if (SKIP_CLERK) {
