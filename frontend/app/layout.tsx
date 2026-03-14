@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from './components/Navbar'
+import GoogleAnalytics from './components/GoogleAnalytics'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="min-h-screen bg-mentat-bg text-mentat-text antialiased flex flex-col" suppressHydrationWarning>
+        <GoogleAnalytics />
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
