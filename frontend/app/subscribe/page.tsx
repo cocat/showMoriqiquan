@@ -1,9 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { SignInButton, SignUpButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { paymentsApi } from '@/lib/api'
 import { Check, Loader2 } from 'lucide-react'
@@ -29,7 +27,6 @@ function PageSkeleton() {
 
 export default function SubscribePage() {
   const { isLoaded, isSignedIn, getToken } = useAppAuth()
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,23 +59,19 @@ export default function SubscribePage() {
           <h2 className="text-xl font-semibold text-mentat-text mb-4">订阅 observer</h2>
           <p className="text-mentat-muted text-sm mb-6">请先登录或注册后再订阅</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <SignUpButton mode="modal" fallbackRedirectUrl="/subscribe">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center px-6 py-3 bg-gold text-mentat-bg rounded-lg font-semibold hover:bg-gold-hover transition"
-              >
-                注册
-              </button>
-            </SignUpButton>
+            <Link
+              href="/sign-up?redirect_url=/subscribe"
+              className="inline-flex items-center justify-center px-6 py-3 bg-gold text-mentat-bg rounded-lg font-semibold hover:bg-gold-hover transition"
+            >
+              注册
+            </Link>
             <span className="text-mentat-muted text-sm">已有账号？</span>
-            <SignInButton mode="modal" fallbackRedirectUrl="/subscribe">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center px-6 py-3 border border-mentat-border text-mentat-text rounded-lg font-medium hover:bg-mentat-bg-card transition"
-              >
-                登录
-              </button>
-            </SignInButton>
+            <Link
+              href="/sign-in?redirect_url=/subscribe"
+              className="inline-flex items-center justify-center px-6 py-3 border border-mentat-border text-mentat-text rounded-lg font-medium hover:bg-mentat-bg-card transition"
+            >
+              登录
+            </Link>
           </div>
         </div>
       </div>
