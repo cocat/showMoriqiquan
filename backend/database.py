@@ -3,7 +3,8 @@
 """
 import os
 import re
-from sqlalchemy import create_engine
+import logging
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -51,6 +52,21 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+logger = logging.getLogger(__name__)
+
+
+PERFORMANCE_INDEX_SQL = (
+    # 最新报告列表、latest summary 走 generated_at 排序
+    (
+        "CREATE INDEX IF NOT EXISTS idx_reports_generated_at "
+        "ON reports (generated_at DESC);"
+    ),
+    # 按日期取报告时同时按生成时间取最新一条
+    (
+        "CREATE INDEX IF NOT EXISTS idx_reports_report_date_generated_at "
+        "ON reports (report_date, generated_at DESC);"
+    ),
+)
 
 
 def get_db():
@@ -59,3 +75,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_performance_indexes() -> None:
+    """
+    启动时确保性能索引存在。使用 IF NOT EXISTS 可重复执行，无副作用。
+    """
+    try:
+        with engine.begin() as conn:
+            for sql in PERFORMANCE_INDEX_SQL:
+                conn.execute(text(sql))
+        logger.info("Performance indexes ensured")
+    except Exception as exc:
+        # 索引创建失败不阻塞服务启动，但记录日志便于排查
+        logger.warning("Failed to ensure performance indexes: %s", exc)

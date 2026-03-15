@@ -39,6 +39,7 @@ export default function Navbar() {
 
   const isReportDetail =
     pathname.startsWith('/reports/') && pathname !== '/reports' && pathname !== '/reports/latest'
+  const isLatestReport = pathname === '/reports/latest' || isReportDetail
   const isReports = pathname === '/reports'
   const isPricing = pathname === '/pricing'
 
@@ -69,7 +70,7 @@ export default function Navbar() {
 
           {/* Desktop nav links */}
           <div className="hidden sm:flex items-center gap-1">
-            <NavLink href="/reports/latest" active={isReportDetail}>
+            <NavLink href="/reports/latest" active={isLatestReport}>
               最新报告
             </NavLink>
             <NavLink href="/reports" active={isReports}>

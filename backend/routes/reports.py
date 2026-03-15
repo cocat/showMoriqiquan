@@ -3,11 +3,13 @@
 """
 from datetime import datetime, timedelta
 from typing import Optional, List
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc
 from database import get_db
 from middleware.auth import get_current_user_optional, get_effective_tier
+from cache import cache_client
 from models.user import User, UserTier
 from models.report import (
     Report, ReportItem, ReportAlert, ReportSentiment, ReportMarketSnapshot,
@@ -16,6 +18,38 @@ from models.report import (
 )
 
 router = APIRouter()
+
+
+LATEST_SUMMARY_TTL_SECONDS = int(os.getenv("CACHE_TTL_LATEST_SUMMARY", "30"))
+CALENDAR_TTL_SECONDS = int(os.getenv("CACHE_TTL_CALENDAR", "300"))
+REPORT_LIST_TTL_SECONDS = int(os.getenv("CACHE_TTL_REPORT_LIST", "60"))
+REPORT_DETAIL_TTL_SECONDS = int(os.getenv("CACHE_TTL_REPORT_DETAIL", "180"))
+
+
+def _overview_teaser(content: Optional[str], max_len: int = 220) -> str:
+    if not content:
+        return ""
+    text = content.strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rstrip() + "..."
+
+
+def _full_report_load_options():
+    return [
+        selectinload(Report.sentiment),
+        selectinload(Report.market_snapshots),
+        selectinload(Report.overview),
+        selectinload(Report.alerts),
+        selectinload(Report.news_briefs),
+        selectinload(Report.options).selectinload(ReportOptions.candidates),
+        selectinload(Report.topic_comparisons),
+    ]
+
+
+def _tier_name(user: Optional[User]) -> str:
+    tier = get_effective_tier(user)
+    return tier.value if tier else "guest"
 
 
 def _serialize_sentiment(s):
@@ -134,22 +168,37 @@ def _serialize_topics(topic_comparisons):
 async def list_reports(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    scope: str = Query("archive"),
     user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Report).order_by(desc(Report.generated_at))
-
+    if scope not in {"archive", "all"}:
+        raise HTTPException(status_code=400, detail="Invalid scope")
     tier = get_effective_tier(user)
+    tier_name = tier.value if tier else "guest"
+    cache_key = f"reports:list:{scope}:{tier_name}:{page}:{page_size}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
+    query = db.query(Report).order_by(desc(Report.generated_at))
+    if scope == "archive":
+        latest_report_id = db.query(Report.report_id).order_by(desc(Report.generated_at)).limit(1).scalar()
+        if latest_report_id:
+            query = query.filter(Report.report_id != latest_report_id)
+
     if not user or tier == UserTier.GUEST:
         query = query.limit(1)
         reports = query.all()
-        return {
+        result = {
             "reports": [r.to_preview() for r in reports],
             "total": len(reports),
             "page": 1,
             "page_size": 1,
             "message": "注册后查看更多历史报告",
         }
+        cache_client.set_json(cache_key, result, REPORT_LIST_TTL_SECONDS)
+        return result
 
     if tier == UserTier.OBSERVER:
         seven_days_ago = datetime.utcnow() - timedelta(days=7)
@@ -157,12 +206,14 @@ async def list_reports(
 
     total = query.count()
     reports = query.offset((page - 1) * page_size).limit(page_size).all()
-    return {
+    result = {
         "reports": [r.to_dict() for r in reports],
         "total": total,
         "page": page,
         "page_size": page_size,
     }
+    cache_client.set_json(cache_key, result, REPORT_LIST_TTL_SECONDS)
+    return result
 
 
 @router.get("/calendar")
@@ -173,6 +224,11 @@ async def get_calendar(
     db: Session = Depends(get_db),
 ):
     """返回指定年月中有报告的日期列表（供月历高亮）"""
+    cache_key = f"reports:calendar:{year}:{month}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     start = datetime(year, month, 1)
     if month == 12:
         end = datetime(year + 1, 1, 1) - timedelta(days=1)
@@ -190,7 +246,9 @@ async def get_calendar(
     rows = subq.all()
     dates: List[str] = sorted({r.report_date for r in rows if r.report_date})
 
-    return {"year": year, "month": month, "dates": dates}
+    result = {"year": year, "month": month, "dates": dates}
+    cache_client.set_json(cache_key, result, CALENDAR_TTL_SECONDS)
+    return result
 
 
 @router.get("/date/{date}")
@@ -200,14 +258,25 @@ async def get_by_date(
     db: Session = Depends(get_db),
 ):
     """按日期获取该日的报告（优先 preview）"""
+    tier_name = _tier_name(user)
+    cache_key = f"reports:by-date:{tier_name}:{date}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     # date 格式: 2026-03-08 或 20260308
     norm = date.replace("-", "") if "-" in date else date
     if len(norm) != 8:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
+    guest = not user or get_effective_tier(user) == UserTier.GUEST
+    query = db.query(Report)
+    if not guest:
+        query = query.options(*_full_report_load_options())
+
+    report_date = f"{norm[:4]}-{norm[4:6]}-{norm[6:]}"
     report = (
-        db.query(Report)
-        .filter(Report.report_date == f"{norm[:4]}-{norm[4:6]}-{norm[6:]}")
+        query.filter(Report.report_date == report_date)
         .order_by(desc(Report.generated_at))
         .first()
     )
@@ -215,7 +284,9 @@ async def get_by_date(
     if not report:
         raise HTTPException(status_code=404, detail="No report for this date")
 
-    return await _get_full_or_preview(report, user, db)
+    result = await _get_full_or_preview(report, user, db)
+    cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
+    return result
 
 
 @router.get("/latest/summary")
@@ -223,12 +294,33 @@ async def get_latest_summary(
     user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
-    report = db.query(Report).order_by(desc(Report.generated_at)).first()
+    tier = get_effective_tier(user)
+    tier_name = tier.value if tier else "guest"
+    cache_key = f"reports:latest-summary:{tier_name}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
+    report = (
+        db.query(Report)
+        .options(selectinload(Report.overview))
+        .order_by(desc(Report.generated_at))
+        .first()
+    )
     if not report:
-        return {"message": "No reports available"}
-    if not user or get_effective_tier(user) == UserTier.GUEST:
-        return {"report": report.to_preview()}
-    return {"report": report.to_dict()}
+        result = {"message": "No reports available"}
+        cache_client.set_json(cache_key, result, LATEST_SUMMARY_TTL_SECONDS)
+        return result
+    overview_content = report.overview.content if report.overview else None
+    teaser = _overview_teaser(overview_content)
+    if not user or tier == UserTier.GUEST:
+        result = {"report": report.to_preview(), "overview_teaser": teaser}
+        cache_client.set_json(cache_key, result, LATEST_SUMMARY_TTL_SECONDS)
+        return result
+
+    result = {"report": report.to_dict(), "overview_teaser": teaser}
+    cache_client.set_json(cache_key, result, LATEST_SUMMARY_TTL_SECONDS)
+    return result
 
 
 @router.get("/{report_id}/full")
@@ -238,10 +330,22 @@ async def get_full_report(
     db: Session = Depends(get_db),
 ):
     """完整报告（含 sentiment, market, overview, alerts, briefs, options, topics）"""
-    report = db.query(Report).filter(Report.report_id == report_id).first()
+    tier_name = _tier_name(user)
+    cache_key = f"reports:full:{tier_name}:{report_id}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
+    guest = not user or get_effective_tier(user) == UserTier.GUEST
+    query = db.query(Report)
+    if not guest:
+        query = query.options(*_full_report_load_options())
+    report = query.filter(Report.report_id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return await _get_full_or_preview(report, user, db)
+    result = await _get_full_or_preview(report, user, db)
+    cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
+    return result
 
 
 async def _get_full_or_preview(
@@ -289,6 +393,12 @@ async def get_report_detail(
     user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
+    tier_name = _tier_name(user)
+    cache_key = f"reports:detail:{tier_name}:{report_id}"
+    cached = cache_client.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     report = db.query(Report).filter(Report.report_id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -301,11 +411,13 @@ async def get_report_detail(
             .limit(5)
             .all()
         )
-        return {
+        result = {
             "report": report.to_preview(),
             "items": [i.to_preview() for i in items],
             "message": "注册后查看完整内容",
         }
+        cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
+        return result
 
     items = (
         db.query(ReportItem)
@@ -313,7 +425,9 @@ async def get_report_detail(
         .order_by(desc(ReportItem.score))
         .all()
     )
-    return {
+    result = {
         "report": report.to_dict(),
         "items": [i.to_dict() for i in items],
     }
+    cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
+    return result

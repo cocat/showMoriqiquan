@@ -34,9 +34,19 @@ const levelColor = (level?: string) => {
   }
 }
 
+const levelLabel = (level?: string) => {
+  switch ((level || '').toLowerCase()) {
+    case 'danger': return '危险'
+    case 'alert': return '警戒'
+    case 'watch': return '关注'
+    default: return '平静'
+  }
+}
+
 function EmptyStateSubscriptionFirst() {
   return (
-    <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-elevated p-8 sm:p-10 text-center">
+    <div className="relative rounded-[28px] overflow-hidden bg-gradient-to-br from-mentat-bg-elevated via-mentat-bg-card to-black p-8 sm:p-10 text-center shadow-[0_24px_70px_-26px_rgba(0,0,0,0.9)]">
+      <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gold/15 blur-3xl" />
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gold/15 mb-4">
         <Sparkles className="w-6 h-6 text-gold" />
       </div>
@@ -73,10 +83,10 @@ function StatPill({
         ? 'text-mentat-warning font-semibold'
         : 'text-mentat-text font-medium'
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs">
-      <Icon className="w-3.5 h-3.5 text-mentat-muted flex-shrink-0" />
+    <span className="inline-flex items-center gap-2 rounded-full bg-black/30 px-3.5 py-2 text-xs">
+      <Icon className="w-3.5 h-3.5 text-mentat-muted-secondary flex-shrink-0" />
       <span className={valueClass}>{value}</span>
-      <span className="text-mentat-muted">{label}</span>
+      <span className="text-mentat-muted-secondary">{label}</span>
     </span>
   )
 }
@@ -108,16 +118,16 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-elevated p-6 animate-pulse">
-        <div className="h-3 w-28 bg-mentat-border rounded mb-3" />
-        <div className="h-5 w-72 bg-mentat-border rounded mb-4" />
-        <div className="flex gap-4 mb-4">
-          <div className="h-6 w-20 bg-mentat-border rounded" />
-          <div className="h-6 w-16 bg-mentat-border rounded" />
-          <div className="h-6 w-16 bg-mentat-border rounded" />
+      <div className="rounded-[28px] bg-gradient-to-br from-mentat-bg-elevated via-mentat-bg-card to-black p-6 sm:p-8 animate-pulse shadow-[0_24px_70px_-26px_rgba(0,0,0,0.9)]">
+        <div className="h-3 w-28 bg-black/35 rounded mb-3" />
+        <div className="h-7 w-3/5 bg-black/35 rounded mb-4" />
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="h-8 w-24 bg-black/35 rounded-full" />
+          <div className="h-8 w-20 bg-black/35 rounded-full" />
+          <div className="h-8 w-20 bg-black/35 rounded-full" />
         </div>
-        <div className="h-1.5 bg-mentat-border rounded mb-2" />
-        <div className="h-14 bg-mentat-border rounded mt-4" />
+        <div className="h-2.5 bg-black/35 rounded-full mb-2" />
+        <div className="h-20 bg-black/35 rounded-2xl mt-4" />
       </div>
     )
   }
@@ -137,106 +147,163 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
   const sources = data.multi_source_count ?? 0
   const hasStats = items > 0 || red > 0 || yellow > 0 || topics > 0 || sources > 0
   const teaserText = (aiTeaser || '').trim()
+  const totalAlerts = red + yellow
+  const criticalShare = totalAlerts > 0 ? `${Math.round((red / totalAlerts) * 100)}%` : '--'
+  const alertDensity = items > 0 ? `${Math.round((totalAlerts / items) * 100)}%` : '--'
+  const sentimentText = levelLabel(data.sentiment_level)
 
   return (
-    <div
-      className="rounded-xl border border-mentat-border-card bg-mentat-bg-elevated overflow-hidden hover:border-mentat-border transition-colors"
-      style={{ borderLeftWidth: 3, borderLeftColor: color }}
-    >
-      <Link href={`/reports/${data.report_date}`} className="block p-6 pb-0 group/link">
-        {/* 标题行 */}
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-mentat-muted font-mono mb-1 uppercase tracking-wider">
-              {data.report_date} · 最新报告
-            </div>
-            <h3 className="text-mentat-text font-semibold text-base leading-snug">
-              {data.title || `${data.report_date} 市场情报日报`}
-            </h3>
-          </div>
-          {data.sentiment_score != null && (
-            <div className="text-right flex-shrink-0">
-              <div className="text-3xl sm:text-4xl font-bold font-mono leading-none" style={{ color }}>
-                {data.sentiment_score}
+    <div className="relative rounded-[30px] overflow-hidden bg-gradient-to-br from-[#0f1116] via-[#141720] to-[#0b0d12] shadow-[0_26px_80px_-32px_rgba(0,0,0,0.95)] transition-all duration-300 hover:scale-[1.004] hover:shadow-[0_36px_95px_-34px_rgba(0,0,0,1)]">
+      <div className="absolute -top-16 -right-20 w-72 h-72 rounded-full bg-gold/12 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -left-10 w-60 h-60 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor: `${color}22` }} />
+
+      <Link href={`/reports/${data.report_date}`} className="relative block group/link">
+        <div className="px-6 sm:px-8 pt-7 sm:pt-8 pb-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.22em] mb-2.5">
+                <span className="px-2 py-1 rounded-full bg-white/5">vol.{data.report_date.replaceAll('-', '')}</span>
+                <span>{data.report_date}</span>
+                <span>最新报告</span>
               </div>
-              <div className="text-[10px] text-mentat-muted mt-0.5 uppercase tracking-wider">情绪指数</div>
+              <h3 className="text-white font-semibold text-xl sm:text-[30px] leading-[1.18] tracking-tight">
+                {data.title || `${data.report_date} 市场情报日报`}
+              </h3>
+              <p className="text-sm text-mentat-muted-secondary mt-3 max-w-3xl">
+                高密度压缩当日关键信号，覆盖风险级别、事件温度与市场情绪轨迹。
+              </p>
+            </div>
+
+            {data.sentiment_score != null && (
+              <div className="rounded-2xl bg-white/[0.04] backdrop-blur-sm px-5 py-4 text-right">
+                <div className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-wider mb-1">
+                  Sentiment Index
+                </div>
+                <div className="text-[52px] font-bold font-mono leading-none" style={{ color }}>
+                  {data.sentiment_score}
+                </div>
+                <div className="text-xs mt-2" style={{ color }}>{levelLabel(data.sentiment_level)}</div>
+                <span className="inline-flex items-center gap-1.5 text-gold text-xs font-medium mt-3 group-hover/link:gap-2 transition-all">
+                  阅读完整报告
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            )}
+          </div>
+
+          {hasStats && (
+            <div className="mt-5 flex flex-wrap items-center gap-2.5">
+              {items > 0 && <StatPill icon={FileText} value={items} label="条信号" />}
+              {red > 0 && <StatPill icon={AlertTriangle} value={red} label="重大预警" highlight="danger" />}
+              {yellow > 0 && <StatPill icon={AlertTriangle} value={yellow} label="重要预警" highlight="warning" />}
+              {topics > 0 && <StatPill icon={Layers} value={topics} label="个主题" />}
+              {sources > 0 && <StatPill icon={Radio} value={sources} label="多源汇总" />}
+            </div>
+          )}
+
+          <div className="mt-4 rounded-xl bg-black/30 px-3 py-2 text-[10px] text-mentat-muted-secondary font-mono uppercase tracking-[0.14em]">
+            Signal Density · Alerts · Theme Coverage · Multi-Source Depth · Sentiment Structure
+          </div>
+
+          <div className="mt-3 rounded-xl bg-black/35 overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-6 gap-3 px-4 pt-3 pb-2 text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em]">
+                <div>信号总量</div>
+                <div>风险事件</div>
+                <div>重大占比</div>
+                <div>预警密度</div>
+                <div>主题覆盖</div>
+                <div>情绪等级</div>
+              </div>
+              <div className="grid grid-cols-6 gap-3 px-4 pb-3">
+                <div>
+                  <div className="text-xl font-mono font-semibold leading-none text-white">{String(items)}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">items/day</div>
+                </div>
+                <div>
+                  <div className={`text-xl font-mono font-semibold leading-none ${totalAlerts > 0 ? 'text-mentat-warning' : 'text-white'}`}>{String(totalAlerts)}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">红{red} / 黄{yellow}</div>
+                </div>
+                <div>
+                  <div className={`text-xl font-mono font-semibold leading-none ${red > 0 ? 'text-mentat-danger' : 'text-white'}`}>{criticalShare}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">red in alerts</div>
+                </div>
+                <div>
+                  <div className={`text-xl font-mono font-semibold leading-none ${totalAlerts > 0 ? 'text-gold' : 'text-white'}`}>{alertDensity}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">alerts/signals</div>
+                </div>
+                <div>
+                  <div className="text-xl font-mono font-semibold leading-none text-white">{String(topics)}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">tracked topics</div>
+                </div>
+                <div>
+                  <div className="text-xl font-mono font-semibold leading-none text-gold">{sentimentText}</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">regime</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {gaugePercent != null && (
+            <div className="mt-6 p-4 rounded-2xl bg-black/30">
+              <div
+                className="h-2.5 rounded-full overflow-hidden relative"
+                style={{
+                  background:
+                    'linear-gradient(to right, #4CAF50 0%, #4CAF50 35%, #C19A6B 35%, #C19A6B 68%, #D4A55A 68%, #D4A55A 88%, #8A5A36 88%, #8A5A36 100%)',
+                }}
+              >
+                <div
+                  className="absolute w-4 h-4 rounded-full bg-white shadow-lg transition-all duration-700"
+                  style={{
+                    left: `${gaugePercent}%`,
+                    top: '50%',
+                    transform: 'translateX(-50%) translateY(-50%)',
+                    boxShadow: '0 0 0 2px var(--bg-card, #1E1E1F)',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-mentat-muted-tertiary font-mono mt-2">
+                <span>0 平静</span>
+                <span>50 警戒</span>
+                <span>100 危险</span>
+              </div>
+            </div>
+          )}
+
+          {teaserText && (
+            <div className="mt-6 rounded-2xl bg-gold/10 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-gold flex-shrink-0" />
+                <span className="text-[11px] font-medium text-gold uppercase tracking-wider">AI 解析摘要</span>
+              </div>
+              <p className="text-sm text-mentat-text-secondary leading-relaxed line-clamp-3">
+                {teaserText}
+              </p>
+              <p className="text-[11px] text-mentat-muted mt-2">完整解读与方向建议见报告内</p>
             </div>
           )}
         </div>
-
-        {/* 数据一览 */}
-        {hasStats && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 py-2.5 px-3 rounded-lg bg-mentat-bg-page/50 border border-mentat-border-card">
-            {items > 0 && <StatPill icon={FileText} value={items} label="条信号" />}
-            {red > 0 && <StatPill icon={AlertTriangle} value={red} label="重大预警" highlight="danger" />}
-            {yellow > 0 && <StatPill icon={AlertTriangle} value={yellow} label="重要预警" highlight="warning" />}
-            {topics > 0 && <StatPill icon={Layers} value={topics} label="个主题" />}
-            {sources > 0 && <StatPill icon={Radio} value={sources} label="多源汇总" />}
-          </div>
-        )}
-
-        {/* 情绪条 */}
-        {gaugePercent != null && (
-          <div className="mb-4">
-            <div
-              className="h-1 rounded-full overflow-hidden relative"
-              style={{
-                background:
-                  'linear-gradient(to right, #4CAF50 0%, #4CAF50 30%, #C19A6B 30%, #C19A6B 55%, #D4A55A 55%, #D4A55A 75%, #FF4444 75%, #FF4444 100%)',
-              }}
-            >
-              <div
-                className="absolute w-3 h-3 rounded-full bg-white border-2 border-mentat-bg shadow transition-all duration-700"
-                style={{
-                  left: `${gaugePercent}%`,
-                  top: '50%',
-                  transform: 'translateX(-50%) translateY(-50%)',
-                }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-mentat-muted-tertiary font-mono mt-1.5">
-              <span>0 平静</span>
-              <span>50 警戒</span>
-              <span>100 危险</span>
-            </div>
-          </div>
-        )}
-
-        {/* AI 解析摘要 */}
-        {teaserText && (
-          <div className="mb-4 p-3.5 rounded-lg bg-gold/10 border border-gold/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-gold flex-shrink-0" />
-              <span className="text-[11px] font-medium text-gold uppercase tracking-wider">AI 解析摘要</span>
-            </div>
-            <p className="text-sm text-mentat-text-secondary leading-relaxed line-clamp-3">
-              {teaserText}
-            </p>
-            <p className="text-[11px] text-mentat-muted mt-2">完整解读与方向建议见报告内</p>
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className="pt-2 pb-4">
-          <span className="inline-flex items-center gap-2 text-gold text-sm font-medium group-hover/link:gap-3 transition-all">
-            查看完整报告
-            <ArrowRight className="w-4 h-4" />
-          </span>
-          <p className="text-[11px] text-mentat-muted-tertiary mt-1.5">
-            含情绪仪表盘、红黄预警、新闻脉络与期权视角
-          </p>
-        </div>
       </Link>
 
-      <div className="px-6 py-4 border-t border-mentat-border-card flex items-center justify-between gap-3 bg-mentat-bg-page/30">
+      <div className="relative px-6 sm:px-8 py-4 bg-black/35 flex items-center justify-between gap-3">
         <span className="text-xs text-mentat-text-secondary">每日早 8 点送达 · 内测免费</span>
-        <Link
-          href="/subscribe"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold/15 text-gold text-sm font-medium hover:bg-gold/25 transition-colors"
-        >
-          <Bell className="w-4 h-4" />
-          订阅每日报告
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/reports/${data.report_date}`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 text-mentat-text-secondary text-xs hover:bg-white/10 transition-colors"
+          >
+            查看样本
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link
+            href="/subscribe"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
+          >
+            <Bell className="w-4 h-4" />
+            立即订阅
+          </Link>
+        </div>
       </div>
     </div>
   )

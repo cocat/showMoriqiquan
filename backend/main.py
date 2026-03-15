@@ -12,11 +12,13 @@ load_dotenv(_backend_dir / ".env")          # backend/.env 可覆盖
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 from routes import reports, health, users, payments
+from database import ensure_performance_indexes
 
 app = FastAPI(
     title="moriqiquanHtml API",
@@ -66,6 +68,7 @@ class OptionsPreflightMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(OptionsPreflightMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -79,6 +82,11 @@ app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+
+
+@app.on_event("startup")
+async def startup_tasks():
+    ensure_performance_indexes()
 
 
 @app.get("/")

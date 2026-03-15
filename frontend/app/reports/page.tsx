@@ -20,10 +20,6 @@ import {
   CalendarDays,
   List,
   ArrowRight,
-  Bell,
-  FileText,
-  TrendingUp,
-  BarChart2,
 } from 'lucide-react'
 
 interface CalendarData {
@@ -86,54 +82,6 @@ function excerpt(text: string | null | undefined, maxLen: number): string {
   const t = text.trim()
   if (t.length <= maxLen) return t
   return t.slice(0, maxLen).trim() + '…'
-}
-
-/* ── Subscription strip（信息密度增强）─────────────────────────── */
-
-function SubscriptionStrip() {
-  return (
-    <div className="mb-8 rounded-2xl border border-gold/30 bg-gradient-to-br from-mentat-bg-gradient-start via-mentat-bg-elevated to-mentat-bg-section overflow-hidden relative">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-gold/10 blur-3xl -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-mentat-blue/5 blur-2xl translate-y-1/2 -translate-x-1/2" />
-      </div>
-      <div className="relative p-6">
-        <div className="grid sm:grid-cols-[1fr_auto] gap-6 items-center">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-gold" />
-              </div>
-              <h3 className="text-base font-semibold text-white">完整日报 · 每日早 8 点送达</h3>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs text-mentat-text-secondary">
-              <span className="flex items-center gap-1.5">
-                <BarChart2 className="w-3.5 h-3.5 text-gold/70" />
-                情绪仪表盘 + 行情快照
-              </span>
-              <span className="flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 text-mentat-warning/70" />
-                红黄两级预警 + 方向建议
-              </span>
-              <span className="flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-mentat-blue/70" />
-                新闻脉络 + 主题热度 + 期权
-              </span>
-            </div>
-            <p className="text-[11px] text-mentat-muted-secondary">订阅后第一时间推送 · 内测免费 · 随时可停</p>
-          </div>
-          <Link
-            href="/subscribe"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gold text-mentat-bg-page rounded-xl text-sm font-semibold hover:bg-gold-hover transition-colors shadow-[0_4px_20px_rgba(193,154,107,0.25)] flex-shrink-0"
-          >
-            <Bell className="w-4 h-4" />
-            免费订阅
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 /* ── 信息密度高的报告卡片（含预览内容）────────────────────────── */
@@ -501,7 +449,7 @@ export default function ReportsPage() {
     setListLoading(true)
     try {
       const token = await getToken()
-      const data = await reportsApi.list(p, PAGE_SIZE, token)
+      const data = await reportsApi.list(p, PAGE_SIZE, token, 'archive')
       const items: ReportItem[] =
         data.reports ?? data.items ?? data.data ?? (Array.isArray(data) ? data : [])
       setReports((prev) => (p === 1 ? items : [...prev, ...items]))
@@ -591,12 +539,23 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen bg-mentat-bg-page">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        <SubscriptionStrip />
+        <div className="mb-4 rounded-xl border border-mentat-border-card bg-mentat-bg-card/70 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-mentat-muted-secondary">
+            归档模块仅展示历史报告；今日最新请从“最新报告”进入。
+          </p>
+          <Link
+            href="/reports/latest"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gold/40 text-gold text-xs hover:bg-gold/10 transition-colors flex-shrink-0"
+          >
+            前往最新报告
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-lg font-semibold text-mentat-text mb-0.5">报告归档</h1>
-            <p className="text-mentat-muted-secondary text-sm">浏览往期日报，预览核心信息</p>
+            <p className="text-mentat-muted-secondary text-sm">按列表或日历回看往期日报，不与最新报告重复</p>
           </div>
 
           <div className="flex rounded-xl overflow-hidden border border-mentat-border-card bg-mentat-bg-card p-0.5">

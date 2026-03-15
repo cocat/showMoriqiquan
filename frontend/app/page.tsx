@@ -18,13 +18,6 @@ interface LatestSummary {
   item_count?: number
 }
 
-/** 从 overview 正文中取前两段（按双换行分割） */
-function getFirstTwoParagraphs(content: string | null | undefined): string {
-  if (!content || typeof content !== 'string') return ''
-  const paragraphs = content.trim().split(/\n\n+/).filter(Boolean)
-  return paragraphs.slice(0, 2).join('\n\n')
-}
-
 export default function HomePage() {
   const { getToken } = useAppAuth()
   const [latest, setLatest] = useState<LatestSummary | null>(null)
@@ -35,34 +28,23 @@ export default function HomePage() {
     getToken().then((token) => {
       if (cancelled) return
       reportsApi
-        .latestSummary(token)
+        .latestSummaryBundle(token)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then((d: any) => {
-          if (!cancelled) setLatest(d && typeof d === 'object' && d.report_date != null ? d : null)
+          if (cancelled) return
+          const report = d?.report
+          setLatest(report && typeof report === 'object' && report.report_date != null ? report : null)
+          setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
         })
-        .catch(() => { if (!cancelled) setLatest(null) })
+        .catch(() => {
+          if (!cancelled) {
+            setLatest(null)
+            setOverviewExcerpt('')
+          }
+        })
     })
     return () => { cancelled = true }
   }, [getToken])
-
-  useEffect(() => {
-    if (!latest?.report_date) return
-    let cancelled = false
-    getToken().then((token) => {
-      if (cancelled) return
-      reportsApi
-        .getByDate(latest.report_date, token)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .then((data: any) => {
-          if (!cancelled) {
-            const content = data?.overview?.content
-            setOverviewExcerpt(getFirstTwoParagraphs(content))
-          }
-        })
-        .catch(() => { if (!cancelled) setOverviewExcerpt('') })
-    })
-    return () => { cancelled = true }
-  }, [latest?.report_date, getToken])
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -103,10 +85,8 @@ export default function HomePage() {
 
       {/* 最新报告（主钩子，置顶） */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:pt-8 sm:pb-10">
-        <div className="max-w-4xl mx-auto">
-          <LatestReportCard data={latest} aiTeaser={overviewExcerpt} />
-        </div>
-        <p className="text-[11px] text-mentat-muted-tertiary mt-4 text-center sm:text-left max-w-4xl mx-auto">
+        <LatestReportCard data={latest} aiTeaser={overviewExcerpt} />
+        <p className="text-[11px] text-mentat-muted-tertiary mt-4 text-center sm:text-left">
           无需绑定支付，可随时停止使用。
         </p>
       </section>

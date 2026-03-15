@@ -8,6 +8,7 @@ const CACHE_PREFIX = 'mv_api:'
 const DEFAULT_TTL = 60 * 1000 // 1 分钟
 const REPORT_TTL = 5 * 60 * 1000 // 5 分钟（报告详情）
 const CALENDAR_TTL = 10 * 60 * 1000 // 10 分钟（日历）
+const REPORT_LIST_TTL = 3 * 60 * 1000 // 3 分钟（归档列表）
 
 function getStorageKey(key: string) {
   return CACHE_PREFIX + key
@@ -74,15 +75,15 @@ export function isNetworkError(e: unknown): boolean {
 }
 
 export const reportsApi = {
-  list: (page = 1, pageSize = 20, token?: string | null) =>
-    cachedFetch(`reports:list:${page}:${pageSize}:${token ?? ''}`, async () => {
+  list: (page = 1, pageSize = 20, token?: string | null, scope: 'archive' | 'all' = 'archive') =>
+    cachedFetch(`reports:list:${scope}:${page}:${pageSize}:${token ?? ''}`, async () => {
       const res = await fetch(
-        `${API_URL}/api/reports/?page=${page}&page_size=${pageSize}`,
+        `${API_URL}/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`,
         { headers: getHeaders(token) }
       )
       if (!res.ok) throw new Error(`API error: ${res.status}`)
       return res.json()
-    }),
+    }, REPORT_LIST_TTL),
 
   get: (reportId: string, token?: string | null) =>
     cachedFetch(`reports:get:${reportId}:${token ?? ''}`, async () => {
@@ -129,6 +130,15 @@ export const reportsApi = {
       if (!res.ok) throw new Error(`API error: ${res.status}`)
       const json = await res.json()
       return json.report != null ? json.report : json
+    }),
+
+  latestSummaryBundle: (token?: string | null) =>
+    cachedFetch(`reports:latest:bundle:${token ?? ''}`, async () => {
+      const res = await fetch(`${API_URL}/api/reports/latest/summary`, {
+        headers: getHeaders(token),
+      })
+      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      return res.json() as Promise<{ report?: unknown; overview_teaser?: string }>
     }),
 }
 
