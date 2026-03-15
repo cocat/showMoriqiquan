@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
@@ -18,24 +18,6 @@ interface LatestSummary {
   item_count?: number
 }
 
-const levelColor = (level?: string) => {
-  switch ((level || '').toLowerCase()) {
-    case 'danger': return '#FF4444'
-    case 'alert':  return '#D4A55A'
-    case 'watch':  return '#C19A6B'
-    default:       return '#4CAF50'
-  }
-}
-
-const levelLabel = (level?: string) => {
-  switch ((level || '').toLowerCase()) {
-    case 'danger': return '危险'
-    case 'alert': return '警戒'
-    case 'watch': return '关注'
-    default: return '平静'
-  }
-}
-
 /** 从 overview 正文中取前两段（按双换行分割） */
 function getFirstTwoParagraphs(content: string | null | undefined): string {
   if (!content || typeof content !== 'string') return ''
@@ -46,7 +28,6 @@ function getFirstTwoParagraphs(content: string | null | undefined): string {
 export default function HomePage() {
   const { getToken } = useAppAuth()
   const [latest, setLatest] = useState<LatestSummary | null>(null)
-  const [latestLoading, setLatestLoading] = useState(true)
   const [overviewExcerpt, setOverviewExcerpt] = useState<string>('')
 
   useEffect(() => {
@@ -60,7 +41,6 @@ export default function HomePage() {
           if (!cancelled) setLatest(d && typeof d === 'object' && d.report_date != null ? d : null)
         })
         .catch(() => { if (!cancelled) setLatest(null) })
-        .finally(() => { if (!cancelled) setLatestLoading(false) })
     })
     return () => { cancelled = true }
   }, [getToken])
@@ -83,21 +63,6 @@ export default function HomePage() {
     })
     return () => { cancelled = true }
   }, [latest?.report_date, getToken])
-
-  const kpis = useMemo(() => {
-    const score = latest?.sentiment_score
-    const level = latest?.sentiment_level
-    return {
-      level,
-      levelText: levelLabel(level),
-      levelColor: levelColor(level),
-      score: score == null ? '—' : String(score),
-      red: latest?.red_count ?? '—',
-      yellow: latest?.yellow_count ?? '—',
-      items: latest?.item_count ?? '—',
-      date: latest?.report_date ?? '—',
-    }
-  }, [latest])
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -136,73 +101,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 主钩子：今日看点（纯 preview，无归档混入） */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div
-          className="rounded-2xl border border-mentat-border-card bg-mentat-bg-elevated overflow-hidden shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)]"
-          style={{ borderLeft: '3px solid var(--gold, #C19A6B)' }}
-        >
-          <div className="flex flex-col min-h-[260px]">
-            <div className="flex flex-col p-5 sm:p-6 flex-1">
-              <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                <span className="text-[11px] text-mentat-muted-secondary font-mono uppercase tracking-wider">
-                  {latestLoading ? '同步中…' : `今日报告 · ${kpis.date || '—'}`}
-                </span>
-                {!latestLoading && (
-                  <span className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md"
-                      style={{
-                        color: kpis.levelColor,
-                        background: `${kpis.levelColor}20`,
-                        border: `1px solid ${kpis.levelColor}50`,
-                      }}
-                    >
-                      情绪 {kpis.score} · {kpis.levelText}
-                    </span>
-                    {(Number(kpis.red) > 0 || Number(kpis.yellow) > 0) && (
-                      <span className="text-[11px] text-mentat-muted-secondary">
-                        <span className="text-mentat-danger">🔴 {String(kpis.red)}</span>
-                        <span className="mx-1">·</span>
-                        <span className="text-mentat-warning">🟡 {String(kpis.yellow)}</span>
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 min-h-0">
-                {latestLoading ? (
-                  <div className="space-y-2.5">
-                    <div className="h-3.5 w-full rounded bg-mentat-border-card animate-pulse" />
-                    <div className="h-3.5 w-[95%] rounded bg-mentat-border-card animate-pulse" />
-                    <div className="h-3.5 w-[88%] rounded bg-mentat-border-card animate-pulse" />
-                    <div className="h-3.5 w-[70%] rounded bg-mentat-border-card animate-pulse" />
-                  </div>
-                ) : overviewExcerpt ? (
-                  <div className="text-[15px] text-mentat-text-faint leading-[1.75] whitespace-pre-wrap line-clamp-6">
-                    {overviewExcerpt}
-                  </div>
-                ) : (
-                  <p className="text-sm text-mentat-muted-secondary">
-                    今日市场综述生成中，可先
-                    <Link href="/reports" className="text-gold hover:underline ml-1">查看历史报告</Link>。
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 pt-4 border-t border-mentat-border-card flex items-center justify-between flex-wrap gap-3">
-                <Link
-                  href="/reports/latest"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                >
-                  阅读完整报告
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <span className="text-[11px] text-mentat-muted-secondary">每日早 8 点送达 · 订阅免费</span>
-              </div>
-            </div>
-          </div>
+      {/* 最新报告（主钩子，置顶） */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:pt-8 sm:pb-10">
+        <div className="max-w-4xl mx-auto">
+          <LatestReportCard data={latest} aiTeaser={overviewExcerpt} />
         </div>
-        <p className="text-[11px] text-mentat-muted-tertiary mt-3 text-center sm:text-left">
+        <p className="text-[11px] text-mentat-muted-tertiary mt-4 text-center sm:text-left max-w-4xl mx-auto">
           无需绑定支付，可随时停止使用。
         </p>
       </section>
@@ -224,17 +128,6 @@ export default function HomePage() {
               <p className="text-mentat-text-secondary text-sm leading-relaxed">AI 提炼重点，红黄分级，只突出值得盯的信号。</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 今日报告：订阅主钩子，单一焦点 */}
-      <section className="border-t border-mentat-border-section py-10 bg-mentat-bg-page">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-6">
-            <h2 className="text-[10px] text-gold font-mono uppercase tracking-[0.2em] mb-1">今日报告</h2>
-            <p className="text-mentat-text-secondary text-sm">当日最新一份，订阅后每天第一时间送达</p>
-          </div>
-          <LatestReportCard data={latest} />
         </div>
       </section>
 

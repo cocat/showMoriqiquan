@@ -28,17 +28,18 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 # 填写 NEXT_PUBLIC_API_URL、NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY、CLERK_SECRET_KEY
 
-# 2. 启动后端（必须在 backend 目录下运行，否则会报 Could not import module "main"）
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-# 或在项目根目录执行: ./run-backend.sh
+# 2. 安装依赖（首次）
+cd backend && pip install -r requirements.txt && cd ..
+cd frontend && npm install && cd ..
 
-# 3. 启动前端（新终端）
-cd frontend
-npm install
-npm run dev
+# 3. 一键热更新（后端 --reload + 前端 Fast Refresh）
+./dev.sh
 ```
+
+或分别启动：
+
+- 后端（热更新）：`./run-backend.sh` 或 `cd backend && uvicorn main:app --reload --port 8000`
+- 前端（热更新）：`cd frontend && npm run dev`
 
 - 后端: http://localhost:8000
 - 前端: http://localhost:3000

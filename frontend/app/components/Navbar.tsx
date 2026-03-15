@@ -103,11 +103,11 @@ export default function Navbar() {
             ) : (
               <>
                 <Show when="signed-out">
-                  <SignInButton>
+                  <SignInButton mode="modal">
                     <button type="button" className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors">登录</button>
                   </SignInButton>
-                  <SignUpButton>
-                    <button type="button" className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors">免费开始</button>
+                  <SignUpButton mode="modal">
+                    <button type="button" className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors">免费注册</button>
                   </SignUpButton>
                 </Show>
                 <Show when="signed-in">
@@ -162,8 +162,8 @@ export default function Navbar() {
             ) : (
               <>
                 <Show when="signed-out">
-                  <SignInButton><button type="button" className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors" onClick={() => setMobileOpen(false)}>登录</button></SignInButton>
-                  <SignUpButton><button type="button" className="flex-1 text-center px-3 py-2 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors" onClick={() => setMobileOpen(false)}>免费开始</button></SignUpButton>
+                  <SignInButton mode="modal"><button type="button" className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors" onClick={() => setMobileOpen(false)}>登录</button></SignInButton>
+                  <SignUpButton mode="modal"><button type="button" className="flex-1 text-center px-3 py-2 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors" onClick={() => setMobileOpen(false)}>免费注册</button></SignUpButton>
                 </Show>
                 <Show when="signed-in">
                   <Link href="/dashboard" className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors" onClick={() => setMobileOpen(false)}>个人中心</Link>

@@ -1,19 +1,21 @@
 'use client'
 
 import { ClerkProvider, useAuth, useUser } from '@clerk/nextjs'
-import React, { createContext, useContext } from 'react'
+import React, { useContext } from 'react'
 
 const SKIP_CLERK = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
 
 type AppAuthValue = {
-  getToken: () => Promise<string | null>
+  isLoaded: boolean
   isSignedIn: boolean
+  getToken: () => Promise<string | null>
   user: { firstName?: string | null; emailAddresses?: { emailAddress: string }[] } | null
 }
 
 const skipValues: AppAuthValue = {
-  getToken: async () => null,
+  isLoaded: true,
   isSignedIn: false,
+  getToken: async () => null,
   user: null,
 }
 
@@ -27,8 +29,9 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const auth = useAuth()
   const { user } = useUser()
   const value: AppAuthValue = {
-    getToken: auth.getToken,
+    isLoaded: auth.isLoaded,
     isSignedIn: !!auth.isSignedIn,
+    getToken: auth.getToken,
     user: user ? { firstName: user.firstName, emailAddresses: user.emailAddresses } : null,
   }
   return (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { usersApi, isNetworkError } from '@/lib/api'
-import { User as UserIcon, Crown, Calendar } from 'lucide-react'
+import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle } from 'lucide-react'
 
 interface UserStats {
   tier: string
@@ -13,15 +13,94 @@ interface UserStats {
   is_active: boolean
 }
 
+function getDaysLeft(subscriptionEnd?: string): number | null {
+  if (!subscriptionEnd) return null
+  const diff = new Date(subscriptionEnd).getTime() - Date.now()
+  if (diff <= 0) return 0
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+function TrialBanner({ daysLeft, subscriptionEnd }: { daysLeft: number; subscriptionEnd: string }) {
+  const isUrgent = daysLeft <= 2
+  const endDate = new Date(subscriptionEnd).toLocaleDateString('zh-CN')
+
+  return (
+    <div
+      className={`mb-6 p-4 rounded-lg border flex items-start gap-3 ${
+        isUrgent
+          ? 'bg-mentat-danger/10 border-mentat-danger/40'
+          : 'bg-gold-dim border-gold/30'
+      }`}
+    >
+      {isUrgent ? (
+        <AlertTriangle className="w-5 h-5 text-mentat-danger flex-shrink-0 mt-0.5" />
+      ) : (
+        <Clock className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isUrgent ? 'text-mentat-danger' : 'text-gold'}`} />
+      )}
+      <div className="flex-1 min-w-0">
+        <p className={`font-semibold text-sm ${isUrgent ? 'text-mentat-danger' : 'text-gold'}`}>
+          {daysLeft === 0
+            ? '免费试用期今日到期'
+            : `免费试用期剩余 ${daysLeft} 天`}
+        </p>
+        <p className="text-mentat-muted text-xs mt-0.5">
+          到期日：{endDate}。到期后将降为访客权限，仅可预览有限内容。
+        </p>
+      </div>
+      {isUrgent && (
+        <Link
+          href="/subscribe"
+          className="flex-shrink-0 px-3 py-1.5 bg-gold text-mentat-bg rounded text-xs font-semibold hover:bg-gold-hover transition"
+        >
+          立即订阅
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="h-8 w-32 rounded bg-mentat-border animate-pulse mb-8" />
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6 space-y-4">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-full bg-mentat-border animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-28 rounded bg-mentat-border animate-pulse" />
+                <div className="h-3 w-40 rounded bg-mentat-border animate-pulse" />
+              </div>
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-10 rounded-lg bg-mentat-border animate-pulse" />
+            ))}
+          </div>
+          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6">
+            <div className="h-5 w-24 rounded bg-mentat-border animate-pulse mb-4" />
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-4 w-full rounded bg-mentat-border animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DashboardContent() {
-  const { user, getToken } = useAppAuth()
+  const { isLoaded, user, getToken } = useAppAuth()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!isLoaded) return
     loadStats()
-  }, [getToken])
+  }, [isLoaded, getToken])
 
   const loadStats = async () => {
     try {
@@ -52,15 +131,13 @@ function DashboardContent() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-mentat-muted">加载中...</div>
-      </div>
-    )
+  if (!isLoaded || loading) {
+    return <DashboardSkeleton />
   }
 
   const tierInfo = stats ? getTierInfo(stats.tier) : getTierInfo('guest')
+  const daysLeft = getDaysLeft(stats?.subscription_end)
+  const showTrialBanner = daysLeft !== null && daysLeft <= 7
 
   return (
     <div className="min-h-screen">
@@ -71,6 +148,10 @@ function DashboardContent() {
           <div className="mb-6 p-4 bg-gold-dim border border-gold/30 rounded-lg text-gold">
             {apiError}
           </div>
+        )}
+
+        {showTrialBanner && stats?.subscription_end && (
+          <TrialBanner daysLeft={daysLeft!} subscriptionEnd={stats.subscription_end} />
         )}
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -97,7 +178,9 @@ function DashboardContent() {
               </div>
               {stats?.subscription_end && (
                 <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                  <span className="text-mentat-muted">订阅到期</span>
+                  <span className="text-mentat-muted">
+                    {daysLeft !== null && daysLeft > 0 ? '试用到期' : '订阅到期'}
+                  </span>
                   <span className="text-mentat-text flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
                     {new Date(stats.subscription_end).toLocaleDateString('zh-CN')}
@@ -142,6 +225,22 @@ function DashboardContent() {
                 <div className="flex items-start gap-2">
                   <span className="text-mentat-success">✓</span>
                   <span className="text-mentat-muted">紧急推送通知</span>
+                </div>
+              </div>
+            )}
+            {(!stats?.tier || stats.tier === 'guest') && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-mentat-success">✓</span>
+                  <span className="text-mentat-muted">预览最新报告（部分内容）</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-mentat-muted-secondary">✗</span>
+                  <span className="text-mentat-muted-secondary">完整报告内容</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-mentat-muted-secondary">✗</span>
+                  <span className="text-mentat-muted-secondary">历史报告归档</span>
                 </div>
               </div>
             )}

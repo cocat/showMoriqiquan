@@ -1,8 +1,10 @@
 """
-Clerk JWT 认证中间件
+Clerk JWT 认证中间件（支持 JWKS 自动拉取公钥）
 """
 import os
-from datetime import datetime
+import time
+import threading
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -13,17 +15,56 @@ from models.user import User, UserTier
 
 security = HTTPBearer(auto_error=False)
 
-# 默认完全开放：不校验 JWT，直接视为 admin。设为 "false" 可恢复 Clerk 校验
 SKIP_CLERK = os.getenv("SKIP_CLERK", "true").strip().lower() == "true"
 
+CLERK_ISSUER = os.getenv("CLERK_ISSUER", "").rstrip("/")
+CLERK_JWKS_URL = os.getenv(
+    "CLERK_JWKS_URL",
+    f"{CLERK_ISSUER}/.well-known/jwks.json" if CLERK_ISSUER else "",
+)
+# 兼容旧的静态 PEM 配置
 CLERK_PEM_PUBLIC_KEY = os.getenv("CLERK_PEM_PUBLIC_KEY", "")
-CLERK_ISSUER = os.getenv("CLERK_ISSUER", "")
 
-# 拥有「最全权限」的 Clerk User ID 列表（逗号分隔），可看全部历史报告与完整页面
 _ADMIN_CLERK_IDS = frozenset(
     x.strip() for x in os.getenv("ADMIN_CLERK_IDS", "").split(",") if x.strip()
 )
 
+# ---------- JWKS 缓存（TTL 1 小时） ----------
+_jwks_cache: Optional[dict] = None
+_jwks_fetched_at: float = 0
+_jwks_ttl: float = 3600
+_jwks_lock = threading.Lock()
+
+
+def _fetch_jwks() -> dict:
+    import urllib.request
+    import json as _json
+
+    with urllib.request.urlopen(CLERK_JWKS_URL, timeout=10) as resp:
+        return _json.loads(resp.read().decode())
+
+
+def get_jwks() -> Optional[dict]:
+    global _jwks_cache, _jwks_fetched_at
+    if not CLERK_JWKS_URL:
+        return None
+    now = time.monotonic()
+    if _jwks_cache and (now - _jwks_fetched_at) < _jwks_ttl:
+        return _jwks_cache
+    with _jwks_lock:
+        if _jwks_cache and (now - _jwks_fetched_at) < _jwks_ttl:
+            return _jwks_cache
+        try:
+            _jwks_cache = _fetch_jwks()
+            _jwks_fetched_at = time.monotonic()
+        except Exception as exc:
+            if _jwks_cache:
+                return _jwks_cache  # 返回旧缓存，避免因网络问题导致所有请求失败
+            raise RuntimeError(f"无法拉取 Clerk JWKS: {exc}") from exc
+    return _jwks_cache
+
+
+# ---------- 工具函数 ----------
 
 def get_effective_tier(user: Optional[User]) -> Optional[UserTier]:
     """返回当前用户生效的 tier；订阅过期则降为 guest。"""
@@ -33,7 +74,6 @@ def get_effective_tier(user: Optional[User]) -> Optional[UserTier]:
         return UserTier.ADMIN
     if user.clerk_user_id and user.clerk_user_id in _ADMIN_CLERK_IDS:
         return UserTier.ADMIN
-    # observer/tracker 需订阅有效：无 subscription_end 或已过期则按 guest 处理
     sub_end = getattr(user, "subscription_end", None)
     if user.tier in (UserTier.OBSERVER, UserTier.TRACKER):
         if not sub_end or datetime.utcnow() > sub_end:
@@ -42,7 +82,7 @@ def get_effective_tier(user: Optional[User]) -> Optional[UserTier]:
 
 
 class _FakeAdminUser:
-    """禁用 Clerk 时使用的虚拟 admin 用户，用于直接暴露最高权限。"""
+    """禁用 Clerk 时使用的虚拟 admin 用户。"""
     user_id = "skip_clerk"
     clerk_user_id = None
     tier = UserTier.ADMIN
@@ -57,20 +97,50 @@ _FAKE_ADMIN_USER = _FakeAdminUser()
 
 
 def verify_clerk_token(token: str) -> dict:
-    try:
-        payload = jwt.decode(
-            token,
-            CLERK_PEM_PUBLIC_KEY,
-            algorithms=["RS256"],
-            issuer=CLERK_ISSUER,
-        )
-        return payload
-    except JWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    """验证 Clerk JWT，优先使用 JWKS，回退到静态 PEM。"""
+    options = {"verify_aud": False}
+
+    # 优先 JWKS
+    if CLERK_JWKS_URL:
+        try:
+            jwks = get_jwks()
+            payload = jwt.decode(
+                token,
+                jwks,
+                algorithms=["RS256"],
+                issuer=CLERK_ISSUER or None,
+                options=options,
+            )
+            return payload
+        except JWTError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    # 回退静态 PEM
+    if CLERK_PEM_PUBLIC_KEY:
+        try:
+            payload = jwt.decode(
+                token,
+                CLERK_PEM_PUBLIC_KEY,
+                algorithms=["RS256"],
+                issuer=CLERK_ISSUER or None,
+                options=options,
+            )
+            return payload
+        except JWTError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Clerk 公钥未配置，无法验证 token",
+    )
 
 
 async def get_current_user_optional(
@@ -79,7 +149,7 @@ async def get_current_user_optional(
 ) -> Optional[User]:
     if SKIP_CLERK:
         return _FAKE_ADMIN_USER  # type: ignore[return-value]
-    if not credentials or not CLERK_PEM_PUBLIC_KEY or not CLERK_ISSUER:
+    if not credentials:
         return None
 
     try:
@@ -102,18 +172,31 @@ async def get_current_user_optional(
                     db.commit()
                     db.refresh(user)
 
+        # 已有用户但从未设置过试用期：补发 7 天试用
+        if user and user.tier in (UserTier.OBSERVER, UserTier.TRACKER) and user.subscription_end is None:
+            now = datetime.utcnow()
+            user.subscription_start = now
+            user.subscription_end = now + timedelta(days=7)
+            db.commit()
+            db.refresh(user)
+
         if not user:
+            now = datetime.utcnow()
             user = User(
                 user_id=clerk_user_id,
                 clerk_user_id=clerk_user_id,
                 email=payload.get("email"),
                 phone=payload.get("phone_number"),
                 tier=UserTier.OBSERVER,
+                subscription_start=now,
+                subscription_end=now + timedelta(days=7),
             )
             db.add(user)
             db.commit()
             db.refresh(user)
 
         return user
+    except HTTPException:
+        raise
     except Exception:
         return None

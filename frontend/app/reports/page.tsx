@@ -123,7 +123,7 @@ function SubscriptionStrip() {
             <p className="text-[11px] text-mentat-muted-secondary">订阅后第一时间推送 · 内测免费 · 随时可停</p>
           </div>
           <Link
-            href="/reports/latest"
+            href="/subscribe"
             className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gold text-mentat-bg-page rounded-xl text-sm font-semibold hover:bg-gold-hover transition-colors shadow-[0_4px_20px_rgba(193,154,107,0.25)] flex-shrink-0"
           >
             <Bell className="w-4 h-4" />
@@ -459,7 +459,7 @@ function ListView({
           订阅后可回溯最近 7 天完整报告，含市场综述、行情快照、新闻脉络、期权策略等
         </p>
         <Link
-          href="/reports/latest"
+          href="/subscribe"
           className="inline-flex items-center gap-2 text-gold text-sm font-medium hover:underline"
         >
           免费订阅
