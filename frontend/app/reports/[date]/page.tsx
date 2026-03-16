@@ -176,8 +176,8 @@ export default function ReportDetailPage() {
   const topic_comparisons = data?.topic_comparisons
   const message = data?.message
 
-  const levelColor = () => {
-    switch ((report.sentiment_level || '').toLowerCase()) {
+  const levelColor = (level?: string) => {
+    switch ((level || '').toLowerCase()) {
       case 'danger': return '#FF4444'
       case 'alert':  return '#D4A55A'
       case 'watch':  return '#C19A6B'
@@ -460,9 +460,9 @@ export default function ReportDetailPage() {
                 <span
                   className="flex-shrink-0 text-xs font-bold px-3 py-1 rounded uppercase tracking-wider"
                   style={{
-                    color: levelColor(),
-                    background: `${levelColor()}18`,
-                    border: `1px solid ${levelColor()}40`,
+                    color: levelColor(report.sentiment_level),
+                    background: `${levelColor(report.sentiment_level)}18`,
+                    border: `1px solid ${levelColor(report.sentiment_level)}40`,
                   }}
                 >
                   {levelLabel(report.sentiment_level)}
