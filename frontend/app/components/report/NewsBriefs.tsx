@@ -46,7 +46,7 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
                       justifyContent: 'center',
                       borderRadius: '50%',
                       background: 'transparent',
-                      border: '1px solid var(--border)',
+                      border: '1px solid transparent',
                       color: 'var(--muted)',
                       transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
                       transition: 'all 0.2s',
@@ -63,7 +63,7 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
                       <>
                         <div
                           className="brief-src-toggle"
-                          style={{ padding: '8px 18px', background: 'var(--ghost)', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}
+                          style={{ padding: '8px 18px', background: 'var(--ghost)', fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}
                           onClick={() => setShowSources((s) => ({ ...s, [i]: !s[i] }))}
                         >
                           {showSources[i] ? '▼ 收起来源' : `▶ 原始来源（${sources.length} 条）`}

@@ -20,6 +20,8 @@ import {
   CalendarDays,
   List,
   ArrowRight,
+  Layers,
+  Clock3,
 } from 'lucide-react'
 
 interface CalendarData {
@@ -105,91 +107,129 @@ function ReportRichCard({
     level: a.level,
     summary: a.ai_summary,
   }))
+  const totalAlerts = (report.red_count ?? 0) + (report.yellow_count ?? 0)
 
   return (
     <Link href={`/reports/${report.report_date}`} className="block group">
       <div
-        className={`rounded-2xl border overflow-hidden transition-all duration-200 group-hover:border-gold/40 group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] ${
+        className={`rounded-2xl border overflow-hidden transition-all duration-250 group-hover:-translate-y-0.5 group-hover:border-gold/40 group-hover:shadow-[0_12px_34px_-16px_rgba(0,0,0,0.65)] ${
           isFeatured
-            ? 'border-gold/30 bg-gradient-to-b from-mentat-bg-elevated to-mentat-bg-gradient-start'
-            : 'border-mentat-border-card bg-mentat-bg-card'
+            ? 'border-gold/35 bg-gradient-to-b from-mentat-bg-elevated via-mentat-bg-card to-mentat-bg-page'
+            : 'border-mentat-border-card bg-gradient-to-b from-mentat-bg-card to-mentat-bg-page/85'
         }`}
       >
-        {/* 头部：日期 + 情绪 + 统计 */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-mentat-border-card/80">
-          <span className="font-mono text-sm text-mentat-text-secondary">{report.report_date}</span>
-          <span
-            className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md"
-            style={{
-              color: c,
-              background: `${c}15`,
-              border: `1px solid ${c}40`,
-            }}
-          >
-            {levelLabel(report.sentiment_level)}
-            {report.sentiment_score != null ? ` ${report.sentiment_score}` : ''}
-          </span>
-          {(report.red_count ?? 0) > 0 && (
-            <span className="text-xs font-mono text-mentat-danger">🔴 重大 {report.red_count}</span>
-          )}
-          {(report.yellow_count ?? 0) > 0 && (
-            <span className="text-xs font-mono text-mentat-warning">🟡 重要 {report.yellow_count}</span>
-          )}
-          <span className="text-[11px] text-mentat-muted-tertiary ml-auto">
-            {report.item_count ?? 0} 条信号
-          </span>
+        {/* 头部 */}
+        <div className="px-4 py-3 border-b border-mentat-border-card/80 bg-black/10">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-[11px] tracking-wide text-mentat-muted-secondary">{report.report_date}</span>
+            <span
+              className="font-mono text-[11px] font-semibold px-2.5 py-1 rounded-md"
+              style={{
+                color: c,
+                background: `${c}15`,
+                border: `1px solid ${c}45`,
+              }}
+            >
+              情绪 {levelLabel(report.sentiment_level)}
+              {report.sentiment_score != null ? ` ${report.sentiment_score}` : ''}
+            </span>
+            {isFeatured && (
+              <span className="px-2 py-1 rounded-md bg-gold/12 border border-gold/35 text-[10px] text-gold font-medium uppercase tracking-[0.08em]">
+                featured
+              </span>
+            )}
+            <span className="ml-auto text-[10px] text-mentat-muted-tertiary">{report.item_count ?? 0} 条信号</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span
+              className="text-[10px] font-mono px-2 py-0.5 rounded border"
+              style={{
+                color: c,
+                background: `${c}10`,
+                borderColor: `${c}35`,
+              }}
+            >
+              regime: {levelLabel(report.sentiment_level)}
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-mentat-border-card text-mentat-muted-secondary bg-mentat-bg-page/60">
+              alerts: {totalAlerts}
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-mentat-border-card text-mentat-muted-secondary bg-mentat-bg-page/60">
+              items: {report.item_count ?? 0}
+            </span>
+          </div>
         </div>
 
         {/* 信息预览区 */}
-        <div className="px-4 py-3 space-y-3">
+        <div className="px-4 py-3 space-y-3.5">
+          {(report.title || isFeatured) && (
+            <h3 className="text-sm font-semibold text-mentat-text leading-snug line-clamp-1">
+              {report.title || `${report.report_date} 市场情报日报`}
+            </h3>
+          )}
+
           {overviewText && (
-            <p className="text-[13px] text-mentat-text-faint leading-relaxed line-clamp-2">
-              {excerpt(overviewText, isFeatured ? 120 : 80)}
-            </p>
+            <div className="rounded-lg border border-mentat-border-card bg-mentat-bg-page/50 px-3 py-2.5">
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">overview</p>
+              <p className="text-[13px] text-mentat-text-faint leading-relaxed line-clamp-2">
+                {excerpt(overviewText, isFeatured ? 140 : 90)}
+              </p>
+            </div>
           )}
+
           {alertPreview.length > 0 && (
-            <div className="space-y-2">
-              {alertPreview.map((a, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 text-xs"
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.level === 'red' ? 'bg-mentat-danger' : 'bg-mentat-warning'}`}
-                  />
-                  <span className="text-mentat-text-secondary line-clamp-1">
-                    {excerpt(a.text || a.summary, isFeatured ? 70 : 50)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {topics.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {topics.map((t, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 rounded text-[10px] font-mono text-mentat-muted-secondary bg-mentat-border-section border border-mentat-border-weak"
-                >
-                  {t.topic_name}
-                  {t.delta != null && t.delta !== 0 && (
-                    <span className={t.delta > 0 ? 'text-mentat-danger' : 'text-mentat-success'}>
-                      {' '}{t.delta > 0 ? '+' : ''}{t.delta}
+            <div className="rounded-lg border border-mentat-border-card bg-mentat-bg-page/40 px-3 py-2.5">
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">alerts preview</p>
+              <div className="space-y-2">
+                {alertPreview.map((a, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 text-xs"
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${a.level === 'red' ? 'bg-mentat-danger' : 'bg-mentat-warning'}`}
+                    />
+                    <span className="text-mentat-text-secondary line-clamp-1">
+                      {excerpt(a.text || a.summary, isFeatured ? 80 : 56)}
                     </span>
-                  )}
-                </span>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {topics.length > 0 && (
+            <div>
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">topic heat</p>
+              <div className="flex flex-wrap gap-1.5">
+                {topics.map((t, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono text-mentat-muted-secondary bg-mentat-border-section border border-mentat-border-weak"
+                  >
+                    {t.topic_name}
+                    {t.delta != null && t.delta !== 0 && (
+                      <span className={t.delta > 0 ? 'text-mentat-danger' : 'text-mentat-success'}>
+                        {' '}{t.delta > 0 ? '+' : ''}{t.delta}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {!overviewText && alertPreview.length === 0 && (
-            <p className="text-xs text-mentat-muted-tertiary">
-              含市场综述、核心预警、新闻简报、期权策略等 · 订阅查看完整内容
-            </p>
+            <div className="rounded-lg border border-dashed border-mentat-border-card bg-mentat-bg-page/35 px-3 py-3">
+              <p className="text-xs text-mentat-muted-tertiary">
+                含市场综述、核心预警、新闻简报、期权策略等 · 订阅查看完整内容
+              </p>
+            </div>
           )}
         </div>
 
         {/* 底部 CTA */}
-        <div className="px-4 py-2.5 border-t border-mentat-border-card/80 flex items-center justify-between bg-mentat-bg-page/50">
+        <div className="px-4 py-2.5 border-t border-mentat-border-card/80 flex items-center justify-between bg-mentat-bg-page/65">
           <span className="text-[11px] text-mentat-muted-tertiary">进入详情查看完整模块</span>
           <span className="inline-flex items-center gap-1 text-gold text-xs font-medium group-hover:gap-2 transition-all">
             查看报告
@@ -328,6 +368,7 @@ function ListView({
   page,
   hasMore,
   onLoadMore,
+  isSignedIn,
 }: {
   reports: ReportItem[]
   details: Record<string, ReportDetail>
@@ -336,6 +377,7 @@ function ListView({
   page: number
   hasMore: boolean
   onLoadMore: () => void
+  isSignedIn: boolean
 }) {
   const grouped = reports.reduce<Record<string, ReportItem[]>>((acc, r) => {
     const month = r.report_date.slice(0, 7)
@@ -360,11 +402,14 @@ function ListView({
         const items = grouped[month]
         return (
           <div key={month}>
-            <div className="flex items-center justify-between mb-4 px-1">
-              <h3 className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-wider">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-wider inline-flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-gold/70" />
                 {month.replace('-', ' 年 ')} 月
               </h3>
-              <span className="text-[10px] text-mentat-muted-tertiary">{items.length} 份报告</span>
+              <span className="text-[10px] text-mentat-muted-tertiary px-2 py-0.5 rounded border border-mentat-border-card bg-mentat-bg-card">
+                {items.length} 份报告
+              </span>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
@@ -407,10 +452,10 @@ function ListView({
           订阅后可回溯最近 7 天完整报告，含市场综述、行情快照、新闻脉络、期权策略等
         </p>
         <Link
-          href="/subscribe"
+          href={isSignedIn ? '/subscribe' : '/sign-up?redirect_url=/reports'}
           className="inline-flex items-center gap-2 text-gold text-sm font-medium hover:underline"
         >
-          免费订阅
+          {isSignedIn ? '免费订阅' : '免费注册查看完整'}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -427,7 +472,7 @@ function cacheKey(date: Date): string {
 }
 
 export default function ReportsPage() {
-  const { getToken } = useAppAuth()
+  const { getToken, isSignedIn } = useAppAuth()
   const [mode, setMode] = useState<ViewMode>('list')
 
   // 列表数据（切换回列表时复用，不再重新请求）
@@ -535,6 +580,8 @@ export default function ReportsPage() {
   }, [getToken])
 
   const calendar = calendarCache[cacheKey(calendarCurrent)] ?? null
+  const archiveMonths = new Set(reports.map((r) => r.report_date.slice(0, 7))).size
+  const latestArchiveDate = reports[0]?.report_date ?? '--'
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -552,55 +599,132 @@ export default function ReportsPage() {
           </Link>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-lg font-semibold text-mentat-text mb-0.5">报告归档</h1>
-            <p className="text-mentat-muted-secondary text-sm">按列表或日历回看往期日报，不与最新报告重复</p>
-          </div>
-
-          <div className="flex rounded-xl overflow-hidden border border-mentat-border-card bg-mentat-bg-card p-0.5">
-            <button
-              onClick={() => setMode('list')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
-                mode === 'list' ? 'bg-mentat-border-card text-mentat-text' : 'text-mentat-muted-secondary hover:text-mentat-text-secondary'
-              }`}
-            >
-              <List className="w-4 h-4" />
-              列表
-            </button>
-            <button
-              onClick={() => setMode('calendar')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
-                mode === 'calendar' ? 'bg-mentat-border-card text-mentat-text' : 'text-mentat-muted-secondary hover:text-mentat-text-secondary'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              日历
-            </button>
-          </div>
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl font-semibold text-mentat-text mb-1">报告归档</h1>
+          <p className="text-mentat-muted-secondary text-sm">按列表或日历回看往期日报，不与最新报告重复</p>
         </div>
 
-        {mode === 'calendar' ? (
-          <CalendarView
-            calendar={calendar}
-            loading={calendarLoading}
-            message={calendarMessage}
-            current={calendarCurrent}
-            onPrevMonth={() => setCalendarCurrent((d) => subMonths(d, 1))}
-            onNextMonth={() => setCalendarCurrent((d) => addMonths(d, 1))}
-            onLoadMonth={loadCalendarMonth}
-          />
-        ) : (
-          <ListView
-            reports={reports}
-            details={details}
-            loading={listLoading && !listLoaded}
-            error={listError}
-            page={listPage}
-            hasMore={listHasMore}
-            onLoadMore={handleLoadMore}
-          />
-        )}
+        <div className="grid gap-5 lg:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
+          <aside className="hidden lg:block">
+            <div className="sticky top-20 space-y-4">
+              <div className="rounded-2xl border border-mentat-border-card bg-gradient-to-b from-mentat-bg-card to-mentat-bg-page px-4 py-4">
+                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em] mb-3">Archive Navigator</p>
+                <div className="grid gap-2">
+                  <button
+                    onClick={() => setMode('list')}
+                    className={`w-full rounded-xl border px-3.5 py-3 text-left transition-all ${
+                      mode === 'list'
+                        ? 'border-gold/45 bg-gold/12 text-mentat-text shadow-[0_8px_20px_-14px_rgba(212,165,90,0.55)]'
+                        : 'border-mentat-border-card bg-mentat-bg-page/50 text-mentat-muted-secondary hover:text-mentat-text hover:border-gold/25'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2 text-sm font-medium">
+                      <List className="w-4 h-4" />
+                      列表视图
+                    </span>
+                    <span className="block mt-1 text-[11px] text-mentat-muted-tertiary">
+                      按月份浏览每期报告摘要
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setMode('calendar')}
+                    className={`w-full rounded-xl border px-3.5 py-3 text-left transition-all ${
+                      mode === 'calendar'
+                        ? 'border-gold/45 bg-gold/12 text-mentat-text shadow-[0_8px_20px_-14px_rgba(212,165,90,0.55)]'
+                        : 'border-mentat-border-card bg-mentat-bg-page/50 text-mentat-muted-secondary hover:text-mentat-text hover:border-gold/25'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2 text-sm font-medium">
+                      <CalendarDays className="w-4 h-4" />
+                      日历视图
+                    </span>
+                    <span className="block mt-1 text-[11px] text-mentat-muted-tertiary">
+                      通过日期快速定位报告
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-mentat-border-card bg-mentat-bg-card px-4 py-4 space-y-3">
+                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em]">Archive Stats</p>
+                <div className="flex items-start gap-2">
+                  <Layers className="w-4 h-4 mt-0.5 text-gold shrink-0" />
+                  <div>
+                    <p className="text-xs text-mentat-muted-secondary">已加载报告</p>
+                    <p className="text-sm font-semibold text-mentat-text">{reports.length} 份</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CalendarDays className="w-4 h-4 mt-0.5 text-gold shrink-0" />
+                  <div>
+                    <p className="text-xs text-mentat-muted-secondary">覆盖月份</p>
+                    <p className="text-sm font-semibold text-mentat-text">{archiveMonths} 个月</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Clock3 className="w-4 h-4 mt-0.5 text-gold shrink-0" />
+                  <div>
+                    <p className="text-xs text-mentat-muted-secondary">最近归档日期</p>
+                    <p className="text-sm font-semibold text-mentat-text">{latestArchiveDate}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <main>
+            {/* mobile tab */}
+            <div className="mb-4 lg:hidden">
+              <div className="grid grid-cols-2 rounded-2xl border border-mentat-border-card bg-mentat-bg-card p-1">
+                <button
+                  onClick={() => setMode('list')}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                    mode === 'list'
+                      ? 'bg-gold/15 text-gold border border-gold/40'
+                      : 'text-mentat-muted-secondary border border-transparent'
+                  }`}
+                >
+                  <List className="w-4 h-4" />
+                  列表
+                </button>
+                <button
+                  onClick={() => setMode('calendar')}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                    mode === 'calendar'
+                      ? 'bg-gold/15 text-gold border border-gold/40'
+                      : 'text-mentat-muted-secondary border border-transparent'
+                  }`}
+                >
+                  <CalendarDays className="w-4 h-4" />
+                  日历
+                </button>
+              </div>
+            </div>
+
+            {mode === 'calendar' ? (
+              <CalendarView
+                calendar={calendar}
+                loading={calendarLoading}
+                message={calendarMessage}
+                current={calendarCurrent}
+                onPrevMonth={() => setCalendarCurrent((d) => subMonths(d, 1))}
+                onNextMonth={() => setCalendarCurrent((d) => addMonths(d, 1))}
+                onLoadMonth={loadCalendarMonth}
+              />
+            ) : (
+              <ListView
+                reports={reports}
+                details={details}
+                loading={listLoading && !listLoaded}
+                error={listError}
+                page={listPage}
+                hasMore={listHasMore}
+                onLoadMore={handleLoadMore}
+                isSignedIn={isSignedIn}
+              />
+            )}
+          </main>
+        </div>
       </div>
     </div>
   )

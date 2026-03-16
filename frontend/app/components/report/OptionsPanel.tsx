@@ -72,7 +72,7 @@ export function OptionsPanel({ data }: { data: OptionsData }) {
                     </tr>
                     {c.reason && (
                       <tr className="candidate-reason-row" style={{ padding: 0, borderTop: 'none' }}>
-                        <td colSpan={5} style={{ padding: '8px 12px 12px', background: 'var(--ghost)', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                        <td colSpan={5} style={{ padding: '8px 12px 12px', background: 'var(--ghost)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
                           {c.reason}
                         </td>
                       </tr>

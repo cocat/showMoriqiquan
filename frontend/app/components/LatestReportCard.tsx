@@ -92,7 +92,7 @@ function StatPill({
 }
 
 export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestReportCardProps) {
-  const { getToken } = useAppAuth()
+  const { getToken, isSignedIn } = useAppAuth()
   const [data, setData] = useState<Summary | null>(dataProp ?? null)
   const [loading, setLoading] = useState(dataProp === undefined)
   const [error, setError] = useState(false)
@@ -272,23 +272,27 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
           )}
 
           {teaserText && (
-            <div className="mt-6 rounded-2xl bg-gold/10 p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-gold flex-shrink-0" />
-                <span className="text-[11px] font-medium text-gold uppercase tracking-wider">AI 解析摘要</span>
+            <div className="mt-5 max-w-4xl rounded-2xl border border-gold/20 bg-gradient-to-br from-[#2A2115]/70 via-[#1F1A13]/88 to-[#15120F]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_14px_34px_-24px_rgba(212,165,90,0.45)] overflow-hidden">
+              <div className="grid min-h-[126px] grid-rows-[1fr_2fr]">
+                <div className="flex items-center gap-2 px-4 sm:px-5 border-b border-gold/15 bg-white/[0.02]">
+                  <Sparkles className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+                  <span className="text-[10px] font-medium text-gold uppercase tracking-wider">AI 解析摘要</span>
+                </div>
+                <div className="px-4 sm:px-5 py-3 sm:py-3.5 flex flex-col justify-between gap-2">
+                  <p className="text-[13px] text-mentat-text-secondary leading-relaxed line-clamp-3">
+                    {teaserText}
+                  </p>
+                  <p className="text-[10px] text-mentat-muted">完整解读与方向建议见报告内</p>
+                </div>
               </div>
-              <p className="text-sm text-mentat-text-secondary leading-relaxed line-clamp-3">
-                {teaserText}
-              </p>
-              <p className="text-[11px] text-mentat-muted mt-2">完整解读与方向建议见报告内</p>
             </div>
           )}
         </div>
       </Link>
 
-      <div className="relative px-6 sm:px-8 py-4 bg-black/35 flex items-center justify-between gap-3">
-        <span className="text-xs text-mentat-text-secondary">每日早 8 点送达 · 内测免费</span>
-        <div className="flex items-center gap-2">
+      <div className="relative px-6 sm:px-8 py-4 bg-black/35 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <span className="text-xs text-mentat-text-secondary text-center sm:text-left">每日早 8 点送达 · 内测免费</span>
+        <div className="flex items-center justify-center sm:justify-end gap-2">
           <Link
             href={`/reports/${data.report_date}`}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 text-mentat-text-secondary text-xs hover:bg-white/10 transition-colors"
@@ -297,11 +301,11 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <Link
-            href="/subscribe"
+            href={isSignedIn ? '/subscribe' : '/sign-up?redirect_url=/reports/latest'}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
           >
             <Bell className="w-4 h-4" />
-            立即订阅
+            {isSignedIn ? '订阅解锁完整' : '免费注册查看完整'}
           </Link>
         </div>
       </div>

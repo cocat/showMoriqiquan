@@ -362,16 +362,23 @@ async def _get_full_or_preview(
             .limit(5)
         )
         alerts = [a.to_dict() for a in alerts_q.all()]
+        briefs_q = (
+            db.query(ReportNewsBrief)
+            .filter(ReportNewsBrief.report_id == report.report_id)
+            .order_by(desc(ReportNewsBrief.source_count))
+            .limit(1)
+        )
+        briefs = briefs_q.all()
         return {
             "report": base,
             "sentiment": None,
             "market_snapshots": [],
             "overview": None,
             "alerts": alerts,
-            "news_briefs": [],
+            "news_briefs": _serialize_briefs(briefs),
             "options": None,
             "topic_comparisons": [],
-            "message": "注册后查看完整内容",
+            "message": "登录并开通 observer 后查看完整内容",
         }
 
     base = report.to_dict()
@@ -414,7 +421,7 @@ async def get_report_detail(
         result = {
             "report": report.to_preview(),
             "items": [i.to_preview() for i in items],
-            "message": "注册后查看完整内容",
+            "message": "登录并开通 observer 后查看完整内容",
         }
         cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
         return result

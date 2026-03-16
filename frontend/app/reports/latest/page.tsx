@@ -27,10 +27,14 @@ const levelLabel = (level?: string) => {
 }
 
 export default function LatestReportPage() {
-  const { getToken } = useAppAuth()
+  const { getToken, isSignedIn } = useAppAuth()
   const [loading, setLoading] = useState(true)
+  const [archiveNavigating, setArchiveNavigating] = useState(false)
   const [latest, setLatest] = useState<LatestSummary | null>(null)
   const [overviewExcerpt, setOverviewExcerpt] = useState('')
+  const [previewMessage, setPreviewMessage] = useState('')
+  const [previewAlerts, setPreviewAlerts] = useState<Array<{ id: number; level?: string; title?: string; zh_title?: string; ai_summary?: string }>>([])
+  const [previewBrief, setPreviewBrief] = useState<{ topic_name?: string; body?: string; impact?: string; source_count?: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +50,27 @@ export default function LatestReportPage() {
           const next = report && typeof report === 'object' && report.report_date != null ? report as LatestSummary : null
           setLatest(next)
           setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
+          if (!next?.report_date) {
+            setPreviewMessage('')
+            setPreviewAlerts([])
+            setPreviewBrief(null)
+            return
+          }
+          reportsApi
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .getByDate(next.report_date, token).then((detail: any) => {
+              if (cancelled) return
+              setPreviewMessage(typeof detail?.message === 'string' ? detail.message : '')
+              setPreviewAlerts(Array.isArray(detail?.alerts) ? detail.alerts.slice(0, 3) : [])
+              const firstBrief = Array.isArray(detail?.news_briefs) ? detail.news_briefs[0] : null
+              setPreviewBrief(firstBrief && typeof firstBrief === 'object' ? firstBrief : null)
+            })
+            .catch(() => {
+              if (cancelled) return
+              setPreviewMessage('')
+              setPreviewAlerts([])
+              setPreviewBrief(null)
+            })
         })
         .catch(() => {
           if (cancelled) {
@@ -53,6 +78,9 @@ export default function LatestReportPage() {
           }
           setLatest(null)
           setOverviewExcerpt('')
+          setPreviewMessage('')
+          setPreviewAlerts([])
+          setPreviewBrief(null)
         })
         .finally(() => {
           if (!cancelled) setLoading(false)
@@ -65,6 +93,7 @@ export default function LatestReportPage() {
     if (!latest?.report_date) return '/reports'
     return `/reports/${latest.report_date}`
   }, [latest])
+  const isPreviewMode = previewMessage.length > 0
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -90,9 +119,14 @@ export default function LatestReportPage() {
             </Link>
             <Link
               href="/reports"
-              className="inline-flex items-center gap-2 px-4 py-2.5 border border-mentat-border text-mentat-text rounded-lg text-sm hover:bg-mentat-bg-card transition-colors"
+              className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm transition-colors ${
+                archiveNavigating
+                  ? 'border-mentat-border text-mentat-muted-secondary pointer-events-none opacity-80'
+                  : 'border-mentat-border text-mentat-text hover:bg-mentat-bg-card'
+              }`}
+              onClick={() => setArchiveNavigating(true)}
             >
-              去报告归档
+              {archiveNavigating ? '正在打开归档...' : '去报告归档'}
               <History className="w-4 h-4" />
             </Link>
           </div>
@@ -165,6 +199,79 @@ export default function LatestReportPage() {
                 </div>
               </div>
             )}
+
+            {isPreviewMode && (
+              <div className="px-6 pb-5">
+                {previewAlerts.length > 0 && (
+                  <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/40 p-4 mb-3">
+                    <div className="text-[11px] text-mentat-muted-secondary font-medium uppercase tracking-[0.12em] mb-2">预览预警（部分）</div>
+                    <div className="space-y-2">
+                      {previewAlerts.map((alert) => {
+                        const alertText = alert.zh_title || alert.title || alert.ai_summary || '未命名预警'
+                        const dotClass = alert.level === 'red' ? 'bg-mentat-danger' : 'bg-mentat-warning'
+                        return (
+                          <div key={alert.id} className="flex items-start gap-2.5">
+                            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 ${dotClass}`} />
+                            <p className="text-sm text-mentat-text-secondary leading-relaxed line-clamp-1">{alertText}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {previewBrief && (
+                  <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/40 p-4">
+                    <div className="text-[11px] text-mentat-muted-secondary font-medium uppercase tracking-[0.12em] mb-1.5">新闻简报预览（1 条）</div>
+                    <p className="text-sm text-mentat-text leading-relaxed line-clamp-2">
+                      {previewBrief.body || previewBrief.impact || '暂无新闻摘要'}
+                    </p>
+                    <p className="text-[11px] text-mentat-muted-secondary mt-2">
+                      {previewBrief.topic_name || '未分类主题'}
+                      {previewBrief.source_count != null ? ` · ${previewBrief.source_count} 个来源` : ''}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isPreviewMode && (
+              <div className="px-6 pb-6">
+                <div className="rounded-xl border border-gold/30 bg-gold/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-gold font-medium">{previewMessage}</p>
+                    <p className="text-xs text-mentat-text-secondary mt-1">完整模块包含市场综述、行情快照、新闻脉络、期权策略等。</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!isSignedIn ? (
+                      <>
+                        <Link
+                          href="/sign-up?redirect_url=/reports/latest"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                        >
+                          免费注册查看完整
+                          <ArrowRight className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          href="/sign-in?redirect_url=/reports/latest"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 border border-mentat-border text-mentat-text rounded-lg text-sm hover:bg-mentat-bg-card transition-colors"
+                        >
+                          已有账号登录
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href="/subscribe"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                      >
+                        订阅解锁完整日报
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl border border-mentat-border-card bg-mentat-bg-card p-8 text-center">
@@ -172,9 +279,14 @@ export default function LatestReportPage() {
             <div className="flex items-center justify-center gap-2">
               <Link
                 href="/reports"
-                className="inline-flex items-center gap-2 px-4 py-2.5 border border-mentat-border text-mentat-text rounded-lg text-sm hover:bg-mentat-bg-page transition-colors"
+                className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm transition-colors ${
+                  archiveNavigating
+                    ? 'border-mentat-border text-mentat-muted-secondary pointer-events-none opacity-80'
+                    : 'border-mentat-border text-mentat-text hover:bg-mentat-bg-page'
+                }`}
+                onClick={() => setArchiveNavigating(true)}
               >
-                查看归档
+                {archiveNavigating ? '正在打开归档...' : '查看归档'}
               </Link>
               <Link
                 href="/subscribe"

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
 
-import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { AlertCircle, ChevronLeft, ChevronRight, BarChart2, LineChart, FileText, AlertTriangle, Newspaper, Layers } from 'lucide-react'
 import { SentimentDashboard } from '@/app/components/report/SentimentDashboard'
 import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
 import { MarketSnapshot, SnapshotItem } from '@/app/components/report/MarketSnapshot'
@@ -126,6 +126,9 @@ export default function ReportDetailPage() {
   const { getToken } = useAppAuth()
   const [data, setData] = useState<FullReport | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeSection, setActiveSection] = useState('sec-header')
+  const navScrollLockRef = useRef(false)
+  const navScrollTimerRef = useRef<number | null>(null)
   const { prev, next } = useAdjacentDates(date, getToken)
 
   const loadReport = useCallback(async () => {
@@ -141,40 +144,37 @@ export default function ReportDetailPage() {
     }
   }, [date, getToken])
 
+  const scrollToSection = useCallback((id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const offsetTop = window.matchMedia('(min-width: 1280px)').matches ? 76 : 108
+    const y = el.getBoundingClientRect().top + window.scrollY - offsetTop
+
+    navScrollLockRef.current = true
+    setActiveSection(id)
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+
+    if (navScrollTimerRef.current) {
+      window.clearTimeout(navScrollTimerRef.current)
+    }
+    navScrollTimerRef.current = window.setTimeout(() => {
+      navScrollLockRef.current = false
+    }, 480)
+  }, [])
+
   useEffect(() => {
     loadReport()
     window.scrollTo({ top: 0 })
   }, [loadReport])
-
-  if (loading) {
-    return (
-      <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-2 border-gold/40 border-t-gold animate-spin" />
-          <p className="text-mentat-text-secondary text-sm">加载报告中…</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center px-4">
-          <AlertCircle className="w-12 h-12 text-mentat-muted-tertiary" />
-          <p className="text-mentat-text-secondary">报告不存在或加载失败</p>
-          <Link
-            href="/reports"
-            className="px-4 py-2 border border-mentat-border text-gold rounded-lg text-sm hover:border-gold hover:bg-gold-dim transition-colors"
-          >
-            ← 返回报告归档
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const { report, sentiment, market_snapshots, overview, alerts, news_briefs, options, topic_comparisons, message } = data
+  const report = data?.report
+  const sentiment = data?.sentiment
+  const market_snapshots = data?.market_snapshots
+  const overview = data?.overview
+  const alerts = data?.alerts
+  const news_briefs = data?.news_briefs
+  const options = data?.options
+  const topic_comparisons = data?.topic_comparisons
+  const message = data?.message
 
   const levelColor = () => {
     switch ((report.sentiment_level || '').toLowerCase()) {
@@ -194,32 +194,111 @@ export default function ReportDetailPage() {
     }
   }
 
-  const sentimentData = sentiment ?? (report.sentiment_score != null || report.sentiment_level
+  const sentimentData = sentiment ?? (report?.sentiment_score != null || report?.sentiment_level
     ? {
-        score: report.sentiment_score ?? 0,
-        level: report.sentiment_level || 'calm',
-        label: levelLabel(report.sentiment_level),
+        score: report?.sentiment_score ?? 0,
+        level: report?.sentiment_level || 'calm',
+        label: levelLabel(report?.sentiment_level),
         description: '当日市场情绪综合评估',
-        red_count: report.red_count,
-        yellow_count: report.yellow_count,
-        signal_count: report.item_count,
+        red_count: report?.red_count,
+        yellow_count: report?.yellow_count,
+        signal_count: report?.item_count,
       }
     : null)
 
-  // 所有模块（有内容或占位）均可跳转
-  const contentSections = [
-    sentimentData && { id: 'sentiment', label: '情绪仪表盘' },
-    { id: 'market', label: '市场行情' },
-    { id: 'overview', label: '市场综述' },
-    alerts && { id: 'alerts', label: '核心预警' },
-    { id: 'briefs', label: '新闻简报' },
-    { id: 'options', label: '期权策略' },
-    { id: 'topics', label: '热点主题' },
-  ].filter(Boolean) as { id: string; label: string }[]
-  const visibleSections = [
-    { id: 'sec-header', label: '报告标题' },
-    ...contentSections,
+  const hasSentiment = Boolean(sentimentData)
+  const hasMarket = Boolean(market_snapshots && market_snapshots.length > 0)
+  const hasOverview = Boolean(overview?.content)
+  const hasAlerts = Boolean(alerts && alerts.length > 0)
+  const hasBriefs = Boolean(news_briefs && news_briefs.length > 0)
+  const hasOptions = Boolean(options?.body_text || (options?.candidates && (options.candidates as unknown[]).length > 0))
+  const hasTopics = Boolean(topic_comparisons && topic_comparisons.length > 0)
+
+  const sectionItems = [
+    { id: 'sec-header', label: '报告标题', available: true, icon: FileText },
+    { id: 'sentiment', label: '情绪仪表盘', available: hasSentiment, icon: BarChart2 },
+    { id: 'market', label: '市场行情', available: hasMarket, icon: LineChart },
+    { id: 'overview', label: '市场综述', available: hasOverview, icon: FileText },
+    { id: 'alerts', label: '核心预警', available: hasAlerts, icon: AlertTriangle },
+    { id: 'briefs', label: '新闻简报', available: hasBriefs, icon: Newspaper },
+    { id: 'options', label: '期权策略', available: hasOptions, icon: Layers },
+    { id: 'topics', label: '热点主题', available: hasTopics, icon: Layers },
   ]
+  const contentSections = sectionItems.filter((s) => s.id !== 'sec-header')
+  const sidebarSections = contentSections
+  const availableCount = contentSections.filter((s) => s.available).length
+  const readyRatio = contentSections.length > 0 ? Math.round((availableCount / contentSections.length) * 100) : 0
+  const alertCount = alerts?.length ?? 0
+  const briefCount = news_briefs?.length ?? 0
+  const snapshotCount = market_snapshots?.length ?? 0
+
+  useEffect(() => {
+    if (!data) {
+      setActiveSection('sec-header')
+      return
+    }
+    const ids = sectionItems.map((s) => s.id)
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null)
+    if (elements.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (navScrollLockRef.current) return
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        if (visible[0]?.target?.id) {
+          setActiveSection(visible[0].target.id)
+        }
+      },
+      {
+        root: null,
+        rootMargin: '-20% 0px -65% 0px',
+        threshold: [0.2, 0.45, 0.7],
+      }
+    )
+
+    elements.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [data, date, hasSentiment, hasMarket, hasOverview, hasAlerts, hasBriefs, hasOptions, hasTopics])
+
+  useEffect(() => {
+    return () => {
+      if (navScrollTimerRef.current) {
+        window.clearTimeout(navScrollTimerRef.current)
+      }
+    }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-gold/40 border-t-gold animate-spin" />
+          <p className="text-mentat-text-secondary text-sm">加载报告中…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!data || !report) {
+    return (
+      <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center px-4">
+          <AlertCircle className="w-12 h-12 text-mentat-muted-tertiary" />
+          <p className="text-mentat-text-secondary">报告不存在或加载失败</p>
+          <Link
+            href="/reports"
+            className="px-4 py-2 border border-mentat-border text-gold rounded-lg text-sm hover:border-gold hover:bg-gold-dim transition-colors"
+          >
+            ← 返回报告归档
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="report-detail-wrapper">
@@ -249,14 +328,13 @@ export default function ReportDetailPage() {
           className="flex-shrink-0 bg-transparent border border-mentat-border text-mentat-muted text-xs rounded px-2 py-1 mx-2 cursor-pointer hover:border-gold transition-colors"
           onChange={(e) => {
             const id = e.target.value
-            const el = document.getElementById(id)
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            scrollToSection(id)
           }}
           defaultValue=""
         >
           <option value="" disabled>跳转至…</option>
-          {visibleSections.map(({ id, label }) => (
-            <option key={id} value={id}>{label}</option>
+          {sectionItems.map(({ id, label, available }) => (
+            <option key={id} value={id}>{`${label}${available ? '' : '（暂无）'}`}</option>
           ))}
         </select>
       </nav>
@@ -266,24 +344,52 @@ export default function ReportDetailPage() {
 
         {/* ── Sidebar: xl screens only ── */}
         <aside className="hidden xl:flex flex-col w-44 flex-shrink-0">
-          <div className="sticky top-[72px] space-y-0.5 pt-2">
+          <div className="sticky top-[72px] space-y-3 pt-2">
             <Link
               href="/reports"
-              className="flex items-center gap-1.5 text-xs text-mentat-muted hover:text-gold transition-colors mb-4 pb-3 border-b border-mentat-border-weak px-2"
+              className="flex items-center gap-1.5 text-xs text-mentat-muted hover:text-gold transition-colors mb-3 px-2"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               报告归档
             </Link>
+
+            <div className="rounded-2xl bg-gradient-to-b from-[#1a202a] to-[#11151c] shadow-[0_14px_28px_-18px_rgba(0,0,0,0.9)] p-3">
+              <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-mentat-muted-tertiary mb-2">
+                report panel
+              </div>
+              <div className="text-xs text-mentat-text mb-1">{report.report_date}</div>
+              <div className="text-[11px] text-mentat-muted-secondary mb-2 line-clamp-2">{report.title}</div>
+              <div className="h-1.5 rounded-full bg-black/35 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#A7763D] to-[#D4A55A]" style={{ width: `${readyRatio}%` }} />
+              </div>
+              <div className="mt-1.5 text-[10px] text-mentat-muted-secondary">
+                模块就绪度 {availableCount}/{contentSections.length}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                <div className="rounded-md bg-black/25 py-1">
+                  <div className="text-[11px] text-mentat-text font-mono">{alertCount}</div>
+                  <div className="text-[9px] text-mentat-muted-tertiary">预警</div>
+                </div>
+                <div className="rounded-md bg-black/25 py-1">
+                  <div className="text-[11px] text-mentat-text font-mono">{briefCount}</div>
+                  <div className="text-[9px] text-mentat-muted-tertiary">简报</div>
+                </div>
+                <div className="rounded-md bg-black/25 py-1">
+                  <div className="text-[11px] text-mentat-text font-mono">{snapshotCount}</div>
+                  <div className="text-[9px] text-mentat-muted-tertiary">行情</div>
+                </div>
+              </div>
+            </div>
 
             {/* Prev / Next date */}
             <div className="flex gap-1 mb-3 px-1">
               <Link
                 href={prev ? `/reports/${prev}` : '#'}
                 aria-disabled={!prev}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs border transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs transition-colors ${
                   prev
-                    ? 'border-mentat-border text-mentat-muted hover:border-gold hover:text-gold'
-                    : 'border-[#222] text-[#333] cursor-not-allowed pointer-events-none'
+                    ? 'text-mentat-muted hover:text-gold hover:bg-gold/10'
+                    : 'text-[#333] cursor-not-allowed pointer-events-none'
                 }`}
               >
                 <ChevronLeft className="w-3 h-3" />
@@ -292,10 +398,10 @@ export default function ReportDetailPage() {
               <Link
                 href={next ? `/reports/${next}` : '#'}
                 aria-disabled={!next}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs border transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs transition-colors ${
                   next
-                    ? 'border-mentat-border text-mentat-muted hover:border-gold hover:text-gold'
-                    : 'border-[#222] text-[#333] cursor-not-allowed pointer-events-none'
+                    ? 'text-mentat-muted hover:text-gold hover:bg-gold/10'
+                    : 'text-[#333] cursor-not-allowed pointer-events-none'
                 }`}
               >
                 后一天
@@ -303,18 +409,44 @@ export default function ReportDetailPage() {
               </Link>
             </div>
 
-            <div className="border-b border-mentat-border-weak mb-2" />
+            <div className="rounded-2xl bg-gradient-to-b from-mentat-bg-card/80 to-mentat-bg-card/55 p-2.5 shadow-[0_12px_24px_-18px_rgba(0,0,0,0.9)]">
+              <div className="flex items-center justify-between px-1 mb-2.5">
+                <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-mentat-muted-tertiary">模块导航</span>
+                <span className="text-[10px] text-mentat-muted-secondary">{availableCount}/{contentSections.length}</span>
+              </div>
 
-            {/* Section links - 仅展示有内容的模块 */}
-            {visibleSections.map(({ id, label }) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className="flex items-center px-2 py-2 rounded text-xs text-mentat-muted hover:text-gold hover:bg-gold-dim transition-colors border-l-2 border-transparent hover:border-gold leading-none"
-              >
-                {label}
-              </a>
-            ))}
+              <div className="space-y-1">
+                {sidebarSections.map(({ id, label, available, icon: Icon }) => {
+                  const isActive = activeSection === id
+                  return (
+                    <button
+                      type="button"
+                      key={id}
+                      onClick={() => scrollToSection(id)}
+                      className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-all ${
+                        isActive
+                          ? 'bg-gradient-to-r from-gold/18 to-gold/8 text-gold shadow-[inset_0_0_0_1px_rgba(212,165,90,0.35)]'
+                          : 'text-mentat-muted hover:text-mentat-text hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{label}</span>
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                          available
+                            ? 'text-gold/90 bg-gold/12'
+                            : 'text-mentat-muted-tertiary bg-black/25'
+                        }`}
+                      >
+                        {available ? '' : '空'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -352,6 +484,31 @@ export default function ReportDetailPage() {
             </div>
           </div>
 
+          <div className="mb-3 overflow-x-auto">
+            <div className="inline-flex items-center gap-1 rounded-2xl bg-gradient-to-r from-mentat-bg-card/90 to-mentat-bg-card/60 p-1.5 min-w-full xl:min-w-0 shadow-[0_12px_24px_-18px_rgba(0,0,0,0.85)]">
+              {contentSections.map(({ id, label, available, icon: Icon }) => {
+                const isActive = activeSection === id
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    onClick={() => scrollToSection(id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all ${
+                      isActive
+                        ? 'text-gold bg-gold/12 shadow-[inset_0_0_0_1px_rgba(212,165,90,0.35)]'
+                        : available
+                          ? 'text-mentat-text-secondary hover:bg-white/[0.04]'
+                          : 'text-mentat-muted-tertiary'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {message && (
             <div
               className="mb-3 p-4 flex items-start gap-3 rounded border border-gold/30 border-l-4 border-l-gold"
@@ -362,7 +519,13 @@ export default function ReportDetailPage() {
             </div>
           )}
 
-          {sentimentData && <SentimentDashboard data={sentimentData} />}
+          {sentimentData ? (
+            <SentimentDashboard data={sentimentData} />
+          ) : (
+            <section id="sentiment" className="scroll-mt-28 xl:scroll-mt-20">
+              <SectionPlaceholder title="情绪仪表盘" message="暂无情绪数据" />
+            </section>
+          )}
           {market_snapshots && market_snapshots.length > 0 ? (
             <MarketSnapshot items={market_snapshots as SnapshotItem[]} />
           ) : (

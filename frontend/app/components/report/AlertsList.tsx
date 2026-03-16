@@ -118,7 +118,7 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
       <div className="report-card">
         {redItems.length > 0 && (
           <>
-            <div className="alerts-section-header red-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--burgundy-dim)', color: '#ff6b6b', borderBottom: '1px solid var(--border)', borderLeft: '4px solid var(--burgundy)' }}>
+            <div className="alerts-section-header red-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--burgundy-dim)', color: '#ff6b6b' }}>
               重大预警
               <span className="section-count">{redItems.length} 条</span>
             </div>
@@ -129,7 +129,7 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
         )}
         {yellowItems.length > 0 && (
           <>
-            <div className="alerts-section-header yellow-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--orange-light)', color: 'var(--gold)', borderBottom: '1px solid var(--border)', borderLeft: '4px solid var(--gold)' }}>
+            <div className="alerts-section-header yellow-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--orange-light)', color: 'var(--gold)' }}>
               重要提示
               <span className="section-count">{yellowItems.length} 条</span>
             </div>
@@ -153,8 +153,6 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
                 textTransform: 'uppercase',
                 background: 'var(--ghost)',
                 color: 'var(--muted)',
-                borderBottom: '1px solid var(--border)',
-                borderLeft: '4px solid var(--border)',
               }}
             >
               核心预警
