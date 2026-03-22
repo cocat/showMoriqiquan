@@ -1,20 +1,87 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
-import { ArrowRight, Bell, CalendarDays, AlertTriangle, BarChart2, History } from 'lucide-react'
+import { ArrowRight, Bell, CalendarDays, AlertTriangle, BarChart2, Lock } from 'lucide-react'
+import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
+import type { SnapshotItem } from '@/app/components/report/MarketSnapshot'
+import type { OptionsData } from '@/app/components/report/OptionsPanel'
+
+const SentimentDashboard = dynamic(
+  () => import('@/app/components/report/SentimentDashboard').then((m) => m.SentimentDashboard),
+  { ssr: false }
+)
+const MarketSnapshot = dynamic(
+  () => import('@/app/components/report/MarketSnapshot').then((m) => m.MarketSnapshot),
+  { ssr: false }
+)
+const AlertsList = dynamic(
+  () => import('@/app/components/report/AlertsList').then((m) => m.AlertsList),
+  { ssr: false }
+)
+const NewsBriefs = dynamic(
+  () => import('@/app/components/report/NewsBriefs').then((m) => m.NewsBriefs),
+  { ssr: false }
+)
+const OptionsPanel = dynamic(
+  () => import('@/app/components/report/OptionsPanel').then((m) => m.OptionsPanel),
+  { ssr: false }
+)
+const TopicComparison = dynamic(
+  () => import('@/app/components/report/TopicComparison').then((m) => m.TopicComparison),
+  { ssr: false }
+)
 
 interface LatestSummary {
   report_id: string
   report_date: string
   title?: string
+  generated_at?: string
   sentiment_score?: number
   sentiment_level?: string
   red_count?: number
   yellow_count?: number
   item_count?: number
+}
+
+interface FullReport {
+  report: LatestSummary & { message?: string }
+  sentiment?: { score: number; level: string; label?: string; description?: string } | null
+  market_snapshots?: SnapshotItem[]
+  overview?: { content: string } | null
+  alerts?: Array<{
+    id: number
+    level: string
+    title: string
+    zh_title?: string
+    ai_summary?: string
+    source_name?: string
+    published_at?: string
+    link?: string
+    topic_name?: string
+    direction?: string
+    direction_note?: string
+  }>
+  news_briefs?: Array<{
+    topic_name?: string
+    body?: string
+    impact?: string
+    source_count?: number
+  }>
+  options?: { body_text?: string; candidates?: unknown[] } | null
+  topic_comparisons?: Array<{
+    topic_name?: string
+    topic_id?: string
+    score?: number
+    today_count?: number
+    yesterday_count?: number
+    delta?: number
+    level?: string
+  }>
+  message?: string
 }
 
 const levelLabel = (level?: string) => {
@@ -29,12 +96,12 @@ const levelLabel = (level?: string) => {
 export default function LatestReportPage() {
   const { getToken, isSignedIn } = useAppAuth()
   const [loading, setLoading] = useState(true)
-  const [archiveNavigating, setArchiveNavigating] = useState(false)
   const [latest, setLatest] = useState<LatestSummary | null>(null)
   const [overviewExcerpt, setOverviewExcerpt] = useState('')
-  const [previewMessage, setPreviewMessage] = useState('')
-  const [previewAlerts, setPreviewAlerts] = useState<Array<{ id: number; level?: string; title?: string; zh_title?: string; ai_summary?: string }>>([])
-  const [previewBrief, setPreviewBrief] = useState<{ topic_name?: string; body?: string; impact?: string; source_count?: number } | null>(null)
+  const [detail, setDetail] = useState<FullReport | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [accessMessage, setAccessMessage] = useState('')
+  const [isRestricted, setIsRestricted] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -50,37 +117,11 @@ export default function LatestReportPage() {
           const next = report && typeof report === 'object' && report.report_date != null ? report as LatestSummary : null
           setLatest(next)
           setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
-          if (!next?.report_date) {
-            setPreviewMessage('')
-            setPreviewAlerts([])
-            setPreviewBrief(null)
-            return
-          }
-          reportsApi
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .getByDate(next.report_date, token).then((detail: any) => {
-              if (cancelled) return
-              setPreviewMessage(typeof detail?.message === 'string' ? detail.message : '')
-              setPreviewAlerts(Array.isArray(detail?.alerts) ? detail.alerts.slice(0, 3) : [])
-              const firstBrief = Array.isArray(detail?.news_briefs) ? detail.news_briefs[0] : null
-              setPreviewBrief(firstBrief && typeof firstBrief === 'object' ? firstBrief : null)
-            })
-            .catch(() => {
-              if (cancelled) return
-              setPreviewMessage('')
-              setPreviewAlerts([])
-              setPreviewBrief(null)
-            })
         })
         .catch(() => {
-          if (cancelled) {
-            return
-          }
+          if (cancelled) return
           setLatest(null)
           setOverviewExcerpt('')
-          setPreviewMessage('')
-          setPreviewAlerts([])
-          setPreviewBrief(null)
         })
         .finally(() => {
           if (!cancelled) setLoading(false)
@@ -89,11 +130,59 @@ export default function LatestReportPage() {
     return () => { cancelled = true }
   }, [getToken])
 
-  const detailHref = useMemo(() => {
-    if (!latest?.report_date) return '/reports'
-    return `/reports/${latest.report_date}`
-  }, [latest])
-  const isPreviewMode = previewMessage.length > 0
+  useEffect(() => {
+    setDetail(null)
+    setAccessMessage('')
+    setIsRestricted(false)
+  }, [latest?.report_date])
+
+  useEffect(() => {
+    if (!latest?.report_date) return
+    let cancelled = false
+    setDetailLoading(true)
+    // 这里直接走 reportsApi 的持久缓存（默认 5 分钟）。
+    getToken()
+      .then((token) => reportsApi.getByDate(latest.report_date, token))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((res: any) => {
+        if (cancelled) return
+        setDetail(res as FullReport)
+        const msg = typeof res?.message === 'string' ? res.message : ''
+        setAccessMessage(msg)
+        setIsRestricted(Boolean(msg))
+      })
+      .catch((error) => {
+        if (cancelled) return
+        const msg = (error as Error)?.message ?? ''
+        if (msg.includes('401') || msg.includes('403')) {
+          setIsRestricted(true)
+          setAccessMessage('当前角色仅开放摘要与部分模块，登录并开通权限后可查看完整信息。')
+          return
+        }
+        setAccessMessage('加载完整报告失败，请稍后重试。')
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [latest?.report_date, getToken])
+
+  const sentimentData = detail?.sentiment ?? (
+    latest?.sentiment_score != null || latest?.sentiment_level
+      ? {
+        score: latest?.sentiment_score ?? 0,
+        level: latest?.sentiment_level || 'calm',
+        label: levelLabel(latest?.sentiment_level),
+        description: '当日市场情绪综合评估',
+      }
+      : null
+  )
+  const alerts = detail?.alerts ?? []
+  const briefs = detail?.news_briefs ?? []
+  const snapshots = detail?.market_snapshots ?? []
+  const options = detail?.options
+  const topics = detail?.topic_comparisons ?? []
+  const overviewContent = detail?.overview?.content || overviewExcerpt
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -101,35 +190,14 @@ export default function LatestReportPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 text-[11px] text-gold font-mono uppercase tracking-[0.15em]">
             <CalendarDays className="w-3.5 h-3.5" />
-            latest module
+            每日市场摘要
           </div>
           <h1 className="mt-4 text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-            最新报告
+            今日市场摘要：3 分钟看懂风险与机会
           </h1>
           <p className="mt-2 text-sm text-mentat-text-secondary max-w-2xl">
-            只看今天这份，面向当日判断。历史检索请进入报告归档模块。
+            最新报告直接在本页展开。系统会按你的角色自动显示完整模块或锁定部分内容。
           </p>
-          <div className="mt-5 flex items-center gap-2">
-            <Link
-              href={detailHref}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-            >
-              阅读最新完整版
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/reports"
-              className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm transition-colors ${
-                archiveNavigating
-                  ? 'border-mentat-border text-mentat-muted-secondary pointer-events-none opacity-80'
-                  : 'border-mentat-border text-mentat-text hover:bg-mentat-bg-card'
-              }`}
-              onClick={() => setArchiveNavigating(true)}
-            >
-              {archiveNavigating ? '正在打开归档...' : '去报告归档'}
-              <History className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -146,128 +214,170 @@ export default function LatestReportPage() {
             </div>
           </div>
         ) : latest ? (
-          <div className="rounded-2xl border border-gold/35 bg-gradient-to-b from-mentat-bg-elevated to-mentat-bg-card overflow-hidden">
-            <div className="px-6 py-5 border-b border-mentat-border-card">
-              <div className="text-[11px] text-mentat-muted-secondary font-mono uppercase tracking-[0.12em]">
-                {latest.report_date}
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-gold/35 bg-gradient-to-b from-mentat-bg-elevated to-mentat-bg-card overflow-hidden">
+              <div className="px-6 py-5 border-b border-mentat-border-card">
+                <div className="text-[11px] text-mentat-muted-secondary font-mono uppercase tracking-[0.12em]">
+                  {latest.report_date}
+                </div>
+                <h2 className="text-xl font-semibold text-white mt-1">
+                  {latest.title || `${latest.report_date} 市场摘要：风险与机会速览`}
+                </h2>
+                <p className="text-sm text-mentat-text-secondary mt-2">
+                  当前页面已进入“最新报告详情模式”，无需再跳转其他页面查看完整版。
+                </p>
               </div>
-              <h2 className="text-xl font-semibold text-white mt-1">
-                {latest.title || `${latest.report_date} 市场情报日报`}
-              </h2>
-              <p className="text-sm text-mentat-text-secondary mt-2">
-                当日核心信号已压缩在本篇，建议先看最新，再决定是否回看归档。
-              </p>
+
+              <div className="px-6 py-5 grid sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
+                  <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">市场情绪</div>
+                  <div className="text-lg font-mono text-gold">{latest.sentiment_score ?? '--'}</div>
+                  <div className="text-xs text-mentat-muted-secondary">{levelLabel(latest.sentiment_level)}</div>
+                </div>
+                <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
+                  <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">信号数量</div>
+                  <div className="text-lg font-mono text-white">{latest.item_count ?? 0}</div>
+                  <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
+                    <BarChart2 className="w-3 h-3" />
+                    当日信号数
+                  </div>
+                </div>
+                <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
+                  <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">重大预警</div>
+                  <div className="text-lg font-mono text-mentat-danger">{latest.red_count ?? 0}</div>
+                  <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    重大预警
+                  </div>
+                </div>
+                <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
+                  <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">重要预警</div>
+                  <div className="text-lg font-mono text-mentat-warning">{latest.yellow_count ?? 0}</div>
+                  <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
+                    <Bell className="w-3 h-3" />
+                    重要预警
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="px-6 py-5 grid sm:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
-                <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">Sentiment</div>
-                <div className="text-lg font-mono text-gold">{latest.sentiment_score ?? '--'}</div>
-                <div className="text-xs text-mentat-muted-secondary">{levelLabel(latest.sentiment_level)}</div>
-              </div>
-              <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
-                <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">Signals</div>
-                <div className="text-lg font-mono text-white">{latest.item_count ?? 0}</div>
-                <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
-                  <BarChart2 className="w-3 h-3" />
-                  当日信号数
-                </div>
-              </div>
-              <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
-                <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">Red Alerts</div>
-                <div className="text-lg font-mono text-mentat-danger">{latest.red_count ?? 0}</div>
-                <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  重大预警
-                </div>
-              </div>
-              <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/60 p-3">
-                <div className="text-[10px] text-mentat-muted-tertiary uppercase tracking-wider mb-1">Yellow Alerts</div>
-                <div className="text-lg font-mono text-mentat-warning">{latest.yellow_count ?? 0}</div>
-                <div className="text-xs text-mentat-muted-secondary inline-flex items-center gap-1">
-                  <Bell className="w-3 h-3" />
-                  重要预警
-                </div>
-              </div>
-            </div>
-
-            {overviewExcerpt && (
-              <div className="px-6 pb-5">
-                <div className="rounded-xl border border-gold/20 bg-gold/10 p-4">
-                  <div className="text-[11px] text-gold font-medium uppercase tracking-[0.12em] mb-1">AI 摘要</div>
-                  <p className="text-sm text-mentat-text-secondary leading-relaxed">{overviewExcerpt}</p>
-                </div>
+            {accessMessage && (
+              <div className="rounded-xl border border-gold/30 bg-gold/10 p-4 text-sm text-gold">
+                {accessMessage}
               </div>
             )}
 
-            {isPreviewMode && (
-              <div className="px-6 pb-5">
-                {previewAlerts.length > 0 && (
-                  <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/40 p-4 mb-3">
-                    <div className="text-[11px] text-mentat-muted-secondary font-medium uppercase tracking-[0.12em] mb-2">预览预警（部分）</div>
-                    <div className="space-y-2">
-                      {previewAlerts.map((alert) => {
-                        const alertText = alert.zh_title || alert.title || alert.ai_summary || '未命名预警'
-                        const dotClass = alert.level === 'red' ? 'bg-mentat-danger' : 'bg-mentat-warning'
-                        return (
-                          <div key={alert.id} className="flex items-start gap-2.5">
-                            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 ${dotClass}`} />
-                            <p className="text-sm text-mentat-text-secondary leading-relaxed line-clamp-1">{alertText}</p>
-                          </div>
-                        )
-                      })}
+            {detailLoading ? (
+              <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card p-5 animate-pulse">
+                <div className="h-4 w-40 rounded bg-mentat-border-card mb-3" />
+                <div className="h-24 w-full rounded bg-mentat-border-card mb-2" />
+                <div className="h-24 w-full rounded bg-mentat-border-card" />
+              </div>
+            ) : (
+              <>
+                {sentimentData ? (
+                  <SentimentDashboard data={sentimentData} />
+                ) : (
+                  <section id="sentiment" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="情绪仪表盘" message="暂无情绪数据" />
+                  </section>
+                )}
+
+                {isRestricted ? (
+                  <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="市场行情快照" message="当前角色未开放该模块" />
+                  </section>
+                ) : snapshots.length > 0 ? (
+                  <MarketSnapshot items={snapshots as SnapshotItem[]} />
+                ) : (
+                  <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="市场行情快照" message="暂无行情数据" />
+                  </section>
+                )}
+
+                {overviewContent ? (
+                  <section id="overview" className="scroll-mt-28 xl:scroll-mt-20">
+                    <div className="report-card">
+                      <div className="report-card-header blue">市场综述</div>
+                      <div className="overview-body">{overviewContent}</div>
                     </div>
-                  </div>
+                  </section>
+                ) : (
+                  <section id="overview" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="市场综述" message="暂无综述内容" />
+                  </section>
                 )}
 
-                {previewBrief && (
-                  <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-page/40 p-4">
-                    <div className="text-[11px] text-mentat-muted-secondary font-medium uppercase tracking-[0.12em] mb-1.5">新闻简报预览（1 条）</div>
-                    <p className="text-sm text-mentat-text leading-relaxed line-clamp-2">
-                      {previewBrief.body || previewBrief.impact || '暂无新闻摘要'}
-                    </p>
-                    <p className="text-[11px] text-mentat-muted-secondary mt-2">
-                      {previewBrief.topic_name || '未分类主题'}
-                      {previewBrief.source_count != null ? ` · ${previewBrief.source_count} 个来源` : ''}
-                    </p>
-                  </div>
+                {isRestricted ? (
+                  <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="核心预警" message="当前角色仅开放摘要，预警详情已锁定" />
+                  </section>
+                ) : alerts.length > 0 ? (
+                  <AlertsList items={alerts} />
+                ) : (
+                  <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="核心预警" message="暂无预警数据" />
+                  </section>
                 )}
-              </div>
+
+                {isRestricted ? (
+                  <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="新闻简报" message="当前角色未开放该模块" />
+                  </section>
+                ) : briefs.length > 0 ? (
+                  <NewsBriefs items={briefs} />
+                ) : (
+                  <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
+                    <SectionPlaceholder title="新闻简报" message="暂无新闻简报" />
+                  </section>
+                )}
+
+                {isRestricted ? (
+                  <>
+                    <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
+                      <SectionPlaceholder title="期权策略" message="当前角色未开放该模块" />
+                    </section>
+                    <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
+                      <SectionPlaceholder title="热点主题" message="当前角色未开放该模块" />
+                    </section>
+                  </>
+                ) : (
+                  <>
+                    {(options?.body_text || (options?.candidates && (options.candidates as unknown[]).length > 0)) ? (
+                      <OptionsPanel data={options as OptionsData} />
+                    ) : (
+                      <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
+                        <SectionPlaceholder title="期权策略" message="暂无期权策略" />
+                      </section>
+                    )}
+                    {topics.length > 0 ? (
+                      <TopicComparison items={topics} />
+                    ) : (
+                      <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
+                        <SectionPlaceholder title="热点主题" message="暂无热点主题数据" />
+                      </section>
+                    )}
+                  </>
+                )}
+              </>
             )}
 
-            {isPreviewMode && (
-              <div className="px-6 pb-6">
-                <div className="rounded-xl border border-gold/30 bg-gold/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-gold font-medium">{previewMessage}</p>
-                    <p className="text-xs text-mentat-text-secondary mt-1">完整模块包含市场综述、行情快照、新闻脉络、期权策略等。</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {!isSignedIn ? (
-                      <>
-                        <Link
-                          href="/sign-up?redirect_url=/reports/latest"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                        >
-                          免费注册查看完整
-                          <ArrowRight className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          href="/sign-in?redirect_url=/reports/latest"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 border border-mentat-border text-mentat-text rounded-lg text-sm hover:bg-mentat-bg-card transition-colors"
-                        >
-                          已有账号登录
-                        </Link>
-                      </>
-                    ) : (
-                      <Link
-                        href="/subscribe"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                      >
-                        订阅解锁完整日报
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    )}
+            {!isSignedIn && (
+              <div className="rounded-xl border border-mentat-border-card bg-black/35 p-4">
+                <div className="flex items-start gap-2">
+                  <Lock className="w-4 h-4 text-gold mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-sm text-gold font-medium">登录后可解锁完整报告模块</p>
+                    <p className="text-xs text-mentat-text-secondary mt-1">
+                      当前按角色展示内容，登录后会自动按你的权限加载可查看的完整信息。
+                    </p>
+                    <Link
+                      href="/sign-in?redirect_url=/reports/latest"
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                    >
+                      去登录
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -276,23 +386,13 @@ export default function LatestReportPage() {
         ) : (
           <div className="rounded-2xl border border-mentat-border-card bg-mentat-bg-card p-8 text-center">
             <p className="text-mentat-text-secondary mb-4">当前还没有可展示的最新报告</p>
-            <div className="flex items-center justify-center gap-2">
+            <div className="px-6 py-5 border-b border-mentat-border-card">
               <Link
-                href="/reports"
-                className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm transition-colors ${
-                  archiveNavigating
-                    ? 'border-mentat-border text-mentat-muted-secondary pointer-events-none opacity-80'
-                    : 'border-mentat-border text-mentat-text hover:bg-mentat-bg-page'
-                }`}
-                onClick={() => setArchiveNavigating(true)}
-              >
-                {archiveNavigating ? '正在打开归档...' : '查看归档'}
-              </Link>
-              <Link
-                href="/subscribe"
+                href="/sign-in?redirect_url=/reports/latest"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
               >
-                免费订阅
+                登录后继续查看
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           </div>

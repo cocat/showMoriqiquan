@@ -1,11 +1,13 @@
-import { SignUp } from '@clerk/nextjs'
+'use client'
 
-export default function SignUpPage() {
+import { SignIn } from '@clerk/nextjs'
+
+export default function ClerkSignInPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center py-12">
-      <SignUp
+      <SignIn
         fallbackRedirectUrl="/dashboard"
-        signInUrl="/clerk-sign-in"
+        signUpUrl="/sign-up"
       />
     </div>
   )

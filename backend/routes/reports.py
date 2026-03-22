@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, List
 import os
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc
 from database import get_db
@@ -12,9 +12,11 @@ from middleware.auth import get_current_user_optional, get_effective_tier
 from cache import cache_client
 from models.user import User, UserTier
 from models.report import (
-    Report, ReportItem, ReportAlert, ReportSentiment, ReportMarketSnapshot,
-    ReportOverview, ReportNewsBrief, ReportOptions, ReportOptionCandidate,
-    ReportTopicComparison,
+    Report,
+    ReportItem,
+    ReportAlert,
+    ReportNewsBrief,
+    ReportOptions,
 )
 
 router = APIRouter()
@@ -47,9 +49,45 @@ def _full_report_load_options():
     ]
 
 
-def _tier_name(user: Optional[User]) -> str:
+def _require_archive_access(user: Optional[User]) -> UserTier:
+    """归档模块强鉴权：未登录拒绝；guest（含到期降级）拒绝。"""
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
     tier = get_effective_tier(user)
-    return tier.value if tier else "guest"
+    if not tier or tier == UserTier.GUEST:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Archive access requires active subscription",
+        )
+    return tier
+
+
+def _observer_cutoff_utc() -> datetime:
+    return datetime.utcnow() - timedelta(days=7)
+
+
+def _within_observer_window(report: Report) -> bool:
+    cutoff = _observer_cutoff_utc()
+    if report.generated_at:
+        return report.generated_at >= cutoff
+    if report.report_date:
+        try:
+            report_day = datetime.strptime(report.report_date, "%Y-%m-%d")
+            return report_day >= cutoff
+        except ValueError:
+            return False
+    return False
+
+
+def _assert_archive_report_access(report: Report, tier: UserTier) -> None:
+    if tier == UserTier.OBSERVER and not _within_observer_window(report):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Report is outside observer 7-day archive window",
+        )
 
 
 def _serialize_sentiment(s):
@@ -174,8 +212,8 @@ async def list_reports(
 ):
     if scope not in {"archive", "all"}:
         raise HTTPException(status_code=400, detail="Invalid scope")
-    tier = get_effective_tier(user)
-    tier_name = tier.value if tier else "guest"
+    tier = _require_archive_access(user)
+    tier_name = tier.value
     cache_key = f"reports:list:{scope}:{tier_name}:{page}:{page_size}"
     cached = cache_client.get_json(cache_key)
     if cached is not None:
@@ -183,25 +221,17 @@ async def list_reports(
 
     query = db.query(Report).order_by(desc(Report.generated_at))
     if scope == "archive":
-        latest_report_id = db.query(Report.report_id).order_by(desc(Report.generated_at)).limit(1).scalar()
+        latest_report_id = (
+            db.query(Report.report_id)
+            .order_by(desc(Report.generated_at))
+            .limit(1)
+            .scalar()
+        )
         if latest_report_id:
             query = query.filter(Report.report_id != latest_report_id)
 
-    if not user or tier == UserTier.GUEST:
-        query = query.limit(1)
-        reports = query.all()
-        result = {
-            "reports": [r.to_preview() for r in reports],
-            "total": len(reports),
-            "page": 1,
-            "page_size": 1,
-            "message": "注册后查看更多历史报告",
-        }
-        cache_client.set_json(cache_key, result, REPORT_LIST_TTL_SECONDS)
-        return result
-
     if tier == UserTier.OBSERVER:
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        seven_days_ago = _observer_cutoff_utc()
         query = query.filter(Report.generated_at >= seven_days_ago)
 
     total = query.count()
@@ -224,7 +254,9 @@ async def get_calendar(
     db: Session = Depends(get_db),
 ):
     """返回指定年月中有报告的日期列表（供月历高亮）"""
-    cache_key = f"reports:calendar:{year}:{month}"
+    tier = _require_archive_access(user)
+    tier_name = tier.value
+    cache_key = f"reports:calendar:{tier_name}:{year}:{month}"
     cached = cache_client.get_json(cache_key)
     if cached is not None:
         return cached
@@ -243,6 +275,8 @@ async def get_calendar(
         .filter(Report.report_date >= start_str, Report.report_date <= end_str)
         .distinct()
     )
+    if tier == UserTier.OBSERVER:
+        subq = subq.filter(Report.generated_at >= _observer_cutoff_utc())
     rows = subq.all()
     dates: List[str] = sorted({r.report_date for r in rows if r.report_date})
 
@@ -258,7 +292,8 @@ async def get_by_date(
     db: Session = Depends(get_db),
 ):
     """按日期获取该日的报告（优先 preview）"""
-    tier_name = _tier_name(user)
+    tier = _require_archive_access(user)
+    tier_name = tier.value
     cache_key = f"reports:by-date:{tier_name}:{date}"
     cached = cache_client.get_json(cache_key)
     if cached is not None:
@@ -269,10 +304,7 @@ async def get_by_date(
     if len(norm) != 8:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
-    guest = not user or get_effective_tier(user) == UserTier.GUEST
-    query = db.query(Report)
-    if not guest:
-        query = query.options(*_full_report_load_options())
+    query = db.query(Report).options(*_full_report_load_options())
 
     report_date = f"{norm[:4]}-{norm[4:6]}-{norm[6:]}"
     report = (
@@ -284,6 +316,7 @@ async def get_by_date(
     if not report:
         raise HTTPException(status_code=404, detail="No report for this date")
 
+    _assert_archive_report_access(report, tier)
     result = await _get_full_or_preview(report, user, db)
     cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
     return result
@@ -330,19 +363,18 @@ async def get_full_report(
     db: Session = Depends(get_db),
 ):
     """完整报告（含 sentiment, market, overview, alerts, briefs, options, topics）"""
-    tier_name = _tier_name(user)
+    tier = _require_archive_access(user)
+    tier_name = tier.value
     cache_key = f"reports:full:{tier_name}:{report_id}"
     cached = cache_client.get_json(cache_key)
     if cached is not None:
         return cached
 
-    guest = not user or get_effective_tier(user) == UserTier.GUEST
-    query = db.query(Report)
-    if not guest:
-        query = query.options(*_full_report_load_options())
+    query = db.query(Report).options(*_full_report_load_options())
     report = query.filter(Report.report_id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    _assert_archive_report_access(report, tier)
     result = await _get_full_or_preview(report, user, db)
     cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
     return result
@@ -400,7 +432,8 @@ async def get_report_detail(
     user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
-    tier_name = _tier_name(user)
+    tier = _require_archive_access(user)
+    tier_name = tier.value
     cache_key = f"reports:detail:{tier_name}:{report_id}"
     cached = cache_client.get_json(cache_key)
     if cached is not None:
@@ -410,21 +443,7 @@ async def get_report_detail(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if not user or get_effective_tier(user) == UserTier.GUEST:
-        items = (
-            db.query(ReportItem)
-            .filter(ReportItem.report_id == report_id)
-            .order_by(desc(ReportItem.score))
-            .limit(5)
-            .all()
-        )
-        result = {
-            "report": report.to_preview(),
-            "items": [i.to_preview() for i in items],
-            "message": "登录并开通 observer 后查看完整内容",
-        }
-        cache_client.set_json(cache_key, result, REPORT_DETAIL_TTL_SECONDS)
-        return result
+    _assert_archive_report_access(report, tier)
 
     items = (
         db.query(ReportItem)

@@ -1,12 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
-import { paymentsApi } from '@/lib/api'
-import { Check, Loader2 } from 'lucide-react'
-
-const FEATURES = ['完整日报所有模块', '最近 7 天历史', '情绪仪表盘 + 行情快照', '红黄预警 + 新闻简报']
+import { ArrowRight, Check } from 'lucide-react'
 
 function PageSkeleton() {
   return (
@@ -26,51 +22,24 @@ function PageSkeleton() {
 }
 
 export default function SubscribePage() {
-  const { isLoaded, isSignedIn, getToken } = useAppAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { isLoaded, isSignedIn } = useAppAuth()
 
   if (!isLoaded) {
     return <PageSkeleton />
-  }
-
-  const handleSubscribe = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const token = await getToken()
-      const res = await paymentsApi.checkout('observer', token)
-      if (res?.checkout_url) {
-        window.location.href = res.checkout_url
-      } else {
-        setError('未获取到支付链接')
-      }
-    } catch (e) {
-      setError((e as Error).message || '创建支付失败')
-    } finally {
-      setLoading(false)
-    }
   }
 
   if (!isSignedIn) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center">
-          <h2 className="text-xl font-semibold text-mentat-text mb-4">订阅 observer</h2>
-          <p className="text-mentat-muted text-sm mb-6">请先登录或注册后再订阅</p>
+          <h2 className="text-xl font-semibold text-mentat-text mb-4">登录后继续阅读</h2>
+          <p className="text-mentat-muted text-sm mb-6">登录后即可查看今日完整报告和历史内容</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/sign-up?redirect_url=/subscribe"
+              href="/sign-in?redirect_url=/reports/latest"
               className="inline-flex items-center justify-center px-6 py-3 bg-gold text-mentat-bg rounded-lg font-semibold hover:bg-gold-hover transition"
             >
-              注册
-            </Link>
-            <span className="text-mentat-muted text-sm">已有账号？</span>
-            <Link
-              href="/sign-in?redirect_url=/subscribe"
-              className="inline-flex items-center justify-center px-6 py-3 border border-mentat-border text-mentat-text rounded-lg font-medium hover:bg-mentat-bg-card transition"
-            >
-              登录
+              去登录
             </Link>
           </div>
         </div>
@@ -81,43 +50,28 @@ export default function SubscribePage() {
   return (
     <div className="min-h-[50vh] flex items-center justify-center px-4">
       <div className="max-w-md w-full rounded-2xl border border-mentat-border bg-mentat-card p-8">
-        <h2 className="text-xl font-semibold text-mentat-text mb-2">订阅 observer</h2>
-        <p className="text-mentat-muted text-sm mb-6">
-          完整报告内容 + 最近 7 天历史 · $29.9/月
-        </p>
+        <h2 className="text-xl font-semibold text-mentat-text mb-2">继续阅读完整内容</h2>
+        <p className="text-mentat-muted text-sm mb-6">你已登录，选择查看今日报告或历史报告。</p>
         <ul className="space-y-3 mb-8">
-          {FEATURES.map((item) => (
+          {['完整日报所有模块', '历史报告回看', '情绪仪表盘 + 行情快照', '红黄预警 + 新闻简报'].map((item) => (
             <li key={item} className="flex items-center gap-2 text-mentat-text-secondary text-sm">
               <Check className="w-4 h-4 text-mentat-success flex-shrink-0" />
               {item}
             </li>
           ))}
         </ul>
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-mentat-error-border/20 border border-mentat-error-border text-sm text-mentat-danger">
-            {error}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={handleSubscribe}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gold text-mentat-bg rounded-lg font-semibold hover:bg-gold-hover transition disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              创建订单...
-            </>
-          ) : (
-            '立即支付 $29.9/月'
-          )}
-        </button>
         <Link
-          href="/dashboard"
+          href="/reports/latest"
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gold text-mentat-bg rounded-lg font-semibold hover:bg-gold-hover transition"
+        >
+          查看今日报告
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+        <Link
+          href="/reports"
           className="block mt-4 text-center text-sm text-mentat-muted hover:text-mentat-text transition"
         >
-          返回个人中心
+          查看历史报告
         </Link>
       </div>
     </div>
