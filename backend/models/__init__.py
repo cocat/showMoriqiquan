@@ -4,3 +4,4 @@ from .report import (
     ReportAlert, ReportTopicComparison, ReportItem,
 )
 from .user import User, UserTier
+from .identity_account import IdentityAccount

@@ -1,19 +1,90 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
 
 import { AlertCircle, ChevronLeft, ChevronRight, BarChart2, LineChart, FileText, AlertTriangle, Newspaper, Layers } from 'lucide-react'
-import { SentimentDashboard } from '@/app/components/report/SentimentDashboard'
 import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
-import { MarketSnapshot, SnapshotItem } from '@/app/components/report/MarketSnapshot'
-import { AlertsList } from '@/app/components/report/AlertsList'
-import { NewsBriefs } from '@/app/components/report/NewsBriefs'
-import { OptionsPanel, type OptionsData } from '@/app/components/report/OptionsPanel'
-import { TopicComparison } from '@/app/components/report/TopicComparison'
+import type { SnapshotItem } from '@/app/components/report/MarketSnapshot'
+import type { OptionsData } from '@/app/components/report/OptionsPanel'
+
+const SKIP_CLERK = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
+
+const SentimentDashboard = dynamic(
+  () => import('@/app/components/report/SentimentDashboard').then((m) => m.SentimentDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="sentiment" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="情绪仪表盘" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
+
+const MarketSnapshot = dynamic(
+  () => import('@/app/components/report/MarketSnapshot').then((m) => m.MarketSnapshot),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="市场行情快照" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
+
+const AlertsList = dynamic(
+  () => import('@/app/components/report/AlertsList').then((m) => m.AlertsList),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="核心预警" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
+
+const NewsBriefs = dynamic(
+  () => import('@/app/components/report/NewsBriefs').then((m) => m.NewsBriefs),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="新闻简报" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
+
+const OptionsPanel = dynamic(
+  () => import('@/app/components/report/OptionsPanel').then((m) => m.OptionsPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="期权策略" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
+
+const TopicComparison = dynamic(
+  () => import('@/app/components/report/TopicComparison').then((m) => m.TopicComparison),
+  {
+    ssr: false,
+    loading: () => (
+      <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
+        <SectionPlaceholder title="热点主题" message="模块加载中..." />
+      </section>
+    ),
+  }
+)
 
 interface FullReport {
   report: {
@@ -67,12 +138,16 @@ interface FullReport {
   message?: string
 }
 
-function useAdjacentDates(date: string, getToken: () => Promise<string | null>) {
+function useAdjacentDates(
+  date: string,
+  getToken: () => Promise<string | null>,
+  canLoad: boolean
+) {
   const [prev, setPrev] = useState<string | null>(null)
   const [next, setNext] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!date) return
+    if (!date || !canLoad) return
     const [year, month] = date.split('-').map(Number)
 
     const fetchMonth = async (y: number, m: number) => {
@@ -115,34 +190,51 @@ function useAdjacentDates(date: string, getToken: () => Promise<string | null>) 
     }
 
     find()
-  }, [date, getToken])
+  }, [date, getToken, canLoad])
 
   return { prev, next }
 }
 
 export default function ReportDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const date = params.date as string
-  const { getToken } = useAppAuth()
+  const { getToken, isLoaded, isSignedIn } = useAppAuth()
+  const hasSession = SKIP_CLERK || isSignedIn
   const [data, setData] = useState<FullReport | null>(null)
   const [loading, setLoading] = useState(true)
+  const [renderPhase, setRenderPhase] = useState(1)
+  const [accessAction, setAccessAction] = useState<'signin' | null>(null)
+  const [accessMessage, setAccessMessage] = useState('')
   const [activeSection, setActiveSection] = useState('sec-header')
   const navScrollLockRef = useRef(false)
   const navScrollTimerRef = useRef<number | null>(null)
-  const { prev, next } = useAdjacentDates(date, getToken)
+  const { prev, next } = useAdjacentDates(date, getToken, isLoaded && hasSession)
 
   const loadReport = useCallback(async () => {
+    if (!isLoaded || !hasSession) return
     setLoading(true)
     try {
       const token = await getToken()
       const res = await reportsApi.getByDate(date, token)
       setData(res)
+      setAccessAction(null)
+      setAccessMessage('')
     } catch (error) {
-      console.error('加载报告失败:', error)
+      const msg = (error as Error)?.message ?? ''
+      if (msg.includes('401')) {
+        setAccessAction('signin')
+        setAccessMessage('登录状态已失效，请重新登录后查看历史报告。')
+      } else if (msg.includes('403')) {
+        setAccessAction('signin')
+        setAccessMessage('当前账号暂无此报告访问权限，请登录后继续查看。')
+      } else {
+        console.error('加载报告失败:', error)
+      }
     } finally {
       setLoading(false)
     }
-  }, [date, getToken])
+  }, [date, getToken, isLoaded, hasSession])
 
   const scrollToSection = useCallback((id: string) => {
     const el = document.getElementById(id)
@@ -163,9 +255,14 @@ export default function ReportDetailPage() {
   }, [])
 
   useEffect(() => {
+    if (!isLoaded) return
+    if (!hasSession) {
+      router.replace(`/sign-in?redirect_url=${encodeURIComponent(`/reports/${date}`)}`)
+      return
+    }
     loadReport()
     window.scrollTo({ top: 0 })
-  }, [loadReport])
+  }, [isLoaded, hasSession, router, date, loadReport])
   const report = data?.report
   const sentiment = data?.sentiment
   const market_snapshots = data?.market_snapshots
@@ -272,18 +369,51 @@ export default function ReportDetailPage() {
     }
   }, [])
 
-  if (loading) {
+  useEffect(() => {
+    if (!report?.report_date) return
+    setRenderPhase(1)
+    const phase2 = window.setTimeout(() => setRenderPhase(2), 80)
+    const phase3 = window.setTimeout(() => setRenderPhase(3), 220)
+    return () => {
+      window.clearTimeout(phase2)
+      window.clearTimeout(phase3)
+    }
+  }, [report?.report_date])
+
+  if (!isLoaded || !hasSession || loading) {
     return (
       <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-2 border-gold/40 border-t-gold animate-spin" />
-          <p className="text-mentat-text-secondary text-sm">加载报告中…</p>
+          <p className="text-mentat-text-secondary text-sm">
+            {!isLoaded || !hasSession ? '正在跳转登录...' : '加载报告中…'}
+          </p>
         </div>
       </div>
     )
   }
 
   if (!data || !report) {
+    if (accessAction) {
+      const href = accessAction === 'signin'
+        ? `/sign-in?redirect_url=${encodeURIComponent(`/reports/${date}`)}`
+        : `/sign-in?redirect_url=${encodeURIComponent(`/reports/${date}`)}`
+      const cta = '重新登录'
+      return (
+        <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 text-center px-4">
+            <AlertCircle className="w-12 h-12 text-gold" />
+            <p className="text-mentat-text-secondary">{accessMessage}</p>
+            <Link
+              href={href}
+              className="px-4 py-2 bg-gold text-mentat-bg rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+            >
+              {cta}
+            </Link>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="report-detail-wrapper min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center px-4">
@@ -293,7 +423,7 @@ export default function ReportDetailPage() {
             href="/reports"
             className="px-4 py-2 border border-mentat-border text-gold rounded-lg text-sm hover:border-gold hover:bg-gold-dim transition-colors"
           >
-            ← 返回报告归档
+            ← 返回历史报告
           </Link>
         </div>
       </div>
@@ -350,7 +480,7 @@ export default function ReportDetailPage() {
               className="flex items-center gap-1.5 text-xs text-mentat-muted hover:text-gold transition-colors mb-3 px-2"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-              报告归档
+              历史报告
             </Link>
 
             <div className="rounded-2xl bg-gradient-to-b from-[#1a202a] to-[#11151c] shadow-[0_14px_28px_-18px_rgba(0,0,0,0.9)] p-3">
@@ -545,27 +675,54 @@ export default function ReportDetailPage() {
               <SectionPlaceholder title="市场综述" message="暂无综述内容" />
             </section>
           )}
-          {alerts && <AlertsList items={alerts} />}
-          {news_briefs && news_briefs.length > 0 ? (
-            <NewsBriefs items={news_briefs} />
+          {renderPhase >= 2 ? (
+            <>
+              {alerts && <AlertsList items={alerts} />}
+              {news_briefs && news_briefs.length > 0 ? (
+                <NewsBriefs items={news_briefs} />
+              ) : (
+                <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
+                  <SectionPlaceholder title="新闻简报" message="暂无新闻简报" />
+                </section>
+              )}
+            </>
           ) : (
-            <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
-              <SectionPlaceholder title="新闻简报" message="暂无新闻简报" />
-            </section>
+            <>
+              <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
+                <SectionPlaceholder title="核心预警" message="模块准备中..." />
+              </section>
+              <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
+                <SectionPlaceholder title="新闻简报" message="模块准备中..." />
+              </section>
+            </>
           )}
-          {(options?.body_text || (options?.candidates && (options.candidates as unknown[]).length > 0)) ? (
-            <OptionsPanel data={options as OptionsData} />
+
+          {renderPhase >= 3 ? (
+            <>
+              {(options?.body_text || (options?.candidates && (options.candidates as unknown[]).length > 0)) ? (
+                <OptionsPanel data={options as OptionsData} />
+              ) : (
+                <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
+                  <SectionPlaceholder title="期权策略" message="暂无期权策略" />
+                </section>
+              )}
+              {topic_comparisons && topic_comparisons.length > 0 ? (
+                <TopicComparison items={topic_comparisons} />
+              ) : (
+                <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
+                  <SectionPlaceholder title="热点主题" message="暂无热点主题数据" />
+                </section>
+              )}
+            </>
           ) : (
-            <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
-              <SectionPlaceholder title="期权策略" message="暂无期权策略" />
-            </section>
-          )}
-          {topic_comparisons && topic_comparisons.length > 0 ? (
-            <TopicComparison items={topic_comparisons} />
-          ) : (
-            <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
-              <SectionPlaceholder title="热点主题" message="暂无热点主题数据" />
-            </section>
+            <>
+              <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
+                <SectionPlaceholder title="期权策略" message="模块准备中..." />
+              </section>
+              <section id="topics" className="scroll-mt-28 xl:scroll-mt-20">
+                <SectionPlaceholder title="热点主题" message="模块准备中..." />
+              </section>
+            </>
           )}
 
           {/* Bottom prev/next navigation */}

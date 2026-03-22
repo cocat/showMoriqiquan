@@ -13,6 +13,11 @@ interface UserStats {
   is_active: boolean
 }
 
+type Entitlement = {
+  enabled: boolean
+  text: string
+}
+
 function getDaysLeft(subscriptionEnd?: string): number | null {
   if (!subscriptionEnd) return null
   const diff = new Date(subscriptionEnd).getTime() - Date.now()
@@ -49,10 +54,10 @@ function TrialBanner({ daysLeft, subscriptionEnd }: { daysLeft: number; subscrip
       </div>
       {isUrgent && (
         <Link
-          href="/subscribe"
+          href="/reports/latest"
           className="flex-shrink-0 px-3 py-1.5 bg-gold text-mentat-bg rounded text-xs font-semibold hover:bg-gold-hover transition"
         >
-          立即订阅
+          查看今日报告
         </Link>
       )}
     </div>
@@ -116,6 +121,9 @@ function DashboardContent() {
       } else if (isNetworkError(error)) {
         setStats({ tier: 'observer', daily_query_count: 0, is_active: true })
         setApiError('无法连接后端，请先启动 API')
+      } else {
+        setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
+        setApiError('账户信息加载失败，先为你展示默认权益。')
       }
     } finally {
       setLoading(false)
@@ -131,11 +139,44 @@ function DashboardContent() {
     }
   }
 
+  const getEntitlements = (tier: string): Entitlement[] => {
+    switch (tier) {
+      case 'observer':
+        return [
+          { enabled: true, text: '查看完整报告' },
+          { enabled: true, text: '查看最近 7 天历史' },
+          { enabled: false, text: '紧急推送通知' },
+          { enabled: false, text: '查看全部历史报告' },
+        ]
+      case 'tracker':
+        return [
+          { enabled: true, text: '查看完整报告' },
+          { enabled: true, text: '查看全部历史报告' },
+          { enabled: true, text: '紧急推送通知' },
+        ]
+      case 'admin':
+        return [
+          { enabled: true, text: '查看完整报告' },
+          { enabled: true, text: '查看全部历史报告' },
+          { enabled: true, text: '紧急推送通知' },
+          { enabled: true, text: '管理员权限（系统维护）' },
+        ]
+      default:
+        return [
+          { enabled: true, text: '预览最新报告（部分内容）' },
+          { enabled: false, text: '查看完整报告' },
+          { enabled: false, text: '查看历史报告' },
+        ]
+    }
+  }
+
   if (!isLoaded || loading) {
     return <DashboardSkeleton />
   }
 
-  const tierInfo = stats ? getTierInfo(stats.tier) : getTierInfo('guest')
+  const currentTier = stats?.tier || 'guest'
+  const tierInfo = getTierInfo(currentTier)
+  const entitlements = getEntitlements(currentTier)
   const daysLeft = getDaysLeft(stats?.subscription_end)
   const showTrialBanner = daysLeft !== null && daysLeft <= 7
 
@@ -170,7 +211,7 @@ function DashboardContent() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                <span className="text-mentat-muted">用户等级</span>
+                <span className="text-mentat-muted">账号等级</span>
                 <span className={`px-3 py-1 ${tierInfo.bg} ${tierInfo.color} rounded-full text-sm font-medium flex items-center gap-1`}>
                   <Crown className="w-4 h-4" />
                   {tierInfo.name}
@@ -179,7 +220,7 @@ function DashboardContent() {
               {stats?.subscription_end && (
                 <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
                   <span className="text-mentat-muted">
-                    {daysLeft !== null && daysLeft > 0 ? '试用到期' : '订阅到期'}
+                    {daysLeft !== null && daysLeft > 0 ? '权限到期' : '权限状态'}
                   </span>
                   <span className="text-mentat-text flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
@@ -188,7 +229,7 @@ function DashboardContent() {
                 </div>
               )}
               <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                <span className="text-mentat-muted">今日查询</span>
+                <span className="text-mentat-muted">今日查看次数</span>
                 <span className="text-mentat-text font-medium">{stats?.daily_query_count ?? 0}</span>
               </div>
             </div>
@@ -196,65 +237,29 @@ function DashboardContent() {
 
           <div className="bg-mentat-card border border-mentat-border rounded-lg p-6">
             <h3 className="text-lg font-semibold text-mentat-text mb-4">当前权益</h3>
-            {stats?.tier === 'observer' && (
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-success">✓</span>
-                  <span className="text-mentat-muted">完整报告内容</span>
+            <div className="space-y-3">
+              {entitlements.map((item) => (
+                <div key={item.text} className="flex items-start gap-2">
+                  <span className={item.enabled ? 'text-mentat-success' : 'text-mentat-muted-secondary'}>
+                    {item.enabled ? '✓' : '✗'}
+                  </span>
+                  <span className={item.enabled ? 'text-mentat-muted' : 'text-mentat-muted-secondary'}>
+                    {item.text}
+                  </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-success">✓</span>
-                  <span className="text-mentat-muted">最近 7 天历史</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-muted-secondary">✗</span>
-                  <span className="text-mentat-muted-secondary">紧急推送通知</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-muted-secondary">✗</span>
-                  <span className="text-mentat-muted-secondary">全部历史报告</span>
-                </div>
-              </div>
-            )}
-            {stats?.tier === 'tracker' && (
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-success">✓</span>
-                  <span className="text-mentat-muted">全部历史报告</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-success">✓</span>
-                  <span className="text-mentat-muted">紧急推送通知</span>
-                </div>
-              </div>
-            )}
-            {(!stats?.tier || stats.tier === 'guest') && (
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-success">✓</span>
-                  <span className="text-mentat-muted">预览最新报告（部分内容）</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-muted-secondary">✗</span>
-                  <span className="text-mentat-muted-secondary">完整报告内容</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-mentat-muted-secondary">✗</span>
-                  <span className="text-mentat-muted-secondary">历史报告归档</span>
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="mt-8 space-y-4">
           {(!stats?.subscription_end || new Date(stats.subscription_end) < new Date()) && (
             <Link
-              href="/subscribe"
+              href="/reports/latest"
               className="block p-4 bg-gold-dim border border-gold/40 rounded-lg hover:border-gold transition"
             >
-              <h4 className="font-semibold text-gold mb-1">订阅 observer · $29.9/月</h4>
-              <p className="text-sm text-mentat-muted">解锁完整报告与 7 天历史</p>
+              <h4 className="font-semibold text-gold mb-1">继续查看今日报告</h4>
+              <p className="text-sm text-mentat-muted">先看最新，再按需回看历史报告</p>
             </Link>
           )}
           <Link
@@ -263,6 +268,13 @@ function DashboardContent() {
           >
             <h4 className="font-semibold text-mentat-text mb-1">查看报告</h4>
             <p className="text-sm text-mentat-muted">浏览按日期索引的日报</p>
+          </Link>
+          <Link
+            href="/account/security"
+            className="block p-4 bg-mentat-card border border-mentat-border rounded-lg hover:border-gold transition"
+          >
+            <h4 className="font-semibold text-mentat-text mb-1">账号安全</h4>
+            <p className="text-sm text-mentat-muted">绑定不同登录方式，统一到同一账号</p>
           </Link>
         </div>
       </div>

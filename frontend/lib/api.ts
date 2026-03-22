@@ -9,6 +9,7 @@ const DEFAULT_TTL = 60 * 1000 // 1 分钟
 const REPORT_TTL = 5 * 60 * 1000 // 5 分钟（报告详情）
 const CALENDAR_TTL = 10 * 60 * 1000 // 10 分钟（日历）
 const REPORT_LIST_TTL = 3 * 60 * 1000 // 3 分钟（归档列表）
+const LATEST_SUMMARY_TTL = 20 * 1000 // 20 秒（最新摘要）
 
 function getStorageKey(key: string) {
   return CACHE_PREFIX + key
@@ -47,9 +48,16 @@ function persistSet(key: string, data: unknown, ttl: number): void {
   }
 }
 
-function cachedFetch<T>(key: string, fetcher: () => Promise<T>, ttl = DEFAULT_TTL): Promise<T> {
-  const cached = persistGet<T>(key)
-  if (cached != null) return Promise.resolve(cached)
+function cachedFetch<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttl = DEFAULT_TTL,
+  opts?: { bypassCache?: boolean }
+): Promise<T> {
+  if (!opts?.bypassCache) {
+    const cached = persistGet<T>(key)
+    if (cached != null) return Promise.resolve(cached)
+  }
   return fetcher().then((data) => {
     persistSet(key, data, ttl)
     return data
@@ -122,7 +130,7 @@ export const reportsApi = {
       return res.json()
     }, CALENDAR_TTL),
 
-  latestSummary: (token?: string | null) =>
+  latestSummary: (token?: string | null, opts?: { forceRefresh?: boolean }) =>
     cachedFetch(`reports:latest:${token ?? ''}`, async () => {
       const res = await fetch(`${API_URL}/api/reports/latest/summary`, {
         headers: getHeaders(token),
@@ -130,16 +138,16 @@ export const reportsApi = {
       if (!res.ok) throw new Error(`API error: ${res.status}`)
       const json = await res.json()
       return json.report != null ? json.report : json
-    }),
+    }, LATEST_SUMMARY_TTL, { bypassCache: opts?.forceRefresh }),
 
-  latestSummaryBundle: (token?: string | null) =>
+  latestSummaryBundle: (token?: string | null, opts?: { forceRefresh?: boolean }) =>
     cachedFetch(`reports:latest:bundle:${token ?? ''}`, async () => {
       const res = await fetch(`${API_URL}/api/reports/latest/summary`, {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
       return res.json() as Promise<{ report?: unknown; overview_teaser?: string }>
-    }),
+    }, LATEST_SUMMARY_TTL, { bypassCache: opts?.forceRefresh }),
 }
 
 export const paymentsApi = {
@@ -165,5 +173,112 @@ export const usersApi = {
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
       return res.json()
+    }),
+}
+
+export const authApi = {
+  exchange: (token: string) =>
+    fetch(`${API_URL}/api/auth/exchange`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ token }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        provider: string
+        app_token: string | null
+        user: {
+          user_id: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          tier: string
+          subscription_end?: string | null
+        }
+      }>
+    }),
+
+  identities: (token: string) =>
+    fetch(`${API_URL}/api/auth/identities`, {
+      method: 'GET',
+      headers: getHeaders(token),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        user: {
+          user_id: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          tier: string
+          subscription_end?: string | null
+        }
+        identities: Array<{
+          provider: string
+          provider_user_id: string
+          email?: string | null
+          phone?: string | null
+          created_at: string
+        }>
+      }>
+    }),
+
+  link: (token: string, currentToken: string) =>
+    fetch(`${API_URL}/api/auth/link`, {
+      method: 'POST',
+      headers: getHeaders(currentToken),
+      body: JSON.stringify({ token }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        status: string
+        provider: string
+      }>
+    }),
+
+  phoneSend: (phone: string) =>
+    fetch(`${API_URL}/api/auth/phone/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{ ok: boolean; debug_otp?: string | null }>
+    }),
+
+  phoneVerify: (phone: string, otp: string) =>
+    fetch(`${API_URL}/api/auth/phone/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        ok: boolean
+        app_token: string | null
+        user: {
+          user_id: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          tier: string
+          subscription_end?: string | null
+        }
+      }>
     }),
 }

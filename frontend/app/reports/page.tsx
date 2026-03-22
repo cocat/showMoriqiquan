@@ -86,6 +86,11 @@ function excerpt(text: string | null | undefined, maxLen: number): string {
   return t.slice(0, maxLen).trim() + '…'
 }
 
+function isAuthApiError(error: unknown): boolean {
+  const message = (error as { message?: string })?.message || ''
+  return /API error:\s*(401|403)/.test(message)
+}
+
 /* ── 信息密度高的报告卡片（含预览内容）────────────────────────── */
 
 function ReportRichCard({
@@ -135,7 +140,7 @@ function ReportRichCard({
             </span>
             {isFeatured && (
               <span className="px-2 py-1 rounded-md bg-gold/12 border border-gold/35 text-[10px] text-gold font-medium uppercase tracking-[0.08em]">
-                featured
+                推荐
               </span>
             )}
             <span className="ml-auto text-[10px] text-mentat-muted-tertiary">{report.item_count ?? 0} 条信号</span>
@@ -149,13 +154,13 @@ function ReportRichCard({
                 borderColor: `${c}35`,
               }}
             >
-              regime: {levelLabel(report.sentiment_level)}
+              情绪等级: {levelLabel(report.sentiment_level)}
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-mentat-border-card text-mentat-muted-secondary bg-mentat-bg-page/60">
-              alerts: {totalAlerts}
+              预警: {totalAlerts}
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-mentat-border-card text-mentat-muted-secondary bg-mentat-bg-page/60">
-              items: {report.item_count ?? 0}
+              信号: {report.item_count ?? 0}
             </span>
           </div>
         </div>
@@ -170,7 +175,7 @@ function ReportRichCard({
 
           {overviewText && (
             <div className="rounded-lg border border-mentat-border-card bg-mentat-bg-page/50 px-3 py-2.5">
-              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">overview</p>
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">市场概览</p>
               <p className="text-[13px] text-mentat-text-faint leading-relaxed line-clamp-2">
                 {excerpt(overviewText, isFeatured ? 140 : 90)}
               </p>
@@ -179,7 +184,7 @@ function ReportRichCard({
 
           {alertPreview.length > 0 && (
             <div className="rounded-lg border border-mentat-border-card bg-mentat-bg-page/40 px-3 py-2.5">
-              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">alerts preview</p>
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">预警预览</p>
               <div className="space-y-2">
                 {alertPreview.map((a, i) => (
                   <div
@@ -200,7 +205,7 @@ function ReportRichCard({
 
           {topics.length > 0 && (
             <div>
-              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">topic heat</p>
+              <p className="text-[11px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em] mb-1.5">主题热度</p>
               <div className="flex flex-wrap gap-1.5">
                 {topics.map((t, i) => (
                   <span
@@ -222,7 +227,7 @@ function ReportRichCard({
           {!overviewText && alertPreview.length === 0 && (
             <div className="rounded-lg border border-dashed border-mentat-border-card bg-mentat-bg-page/35 px-3 py-3">
               <p className="text-xs text-mentat-muted-tertiary">
-                含市场综述、核心预警、新闻简报、期权策略等 · 订阅查看完整内容
+                含市场综述、核心预警、新闻简报、期权策略等 · 登录后查看完整内容
               </p>
             </div>
           )}
@@ -365,6 +370,7 @@ function ListView({
   details,
   loading,
   error,
+  unauthorized,
   page,
   hasMore,
   onLoadMore,
@@ -374,6 +380,7 @@ function ListView({
   details: Record<string, ReportDetail>
   loading: boolean
   error: boolean
+  unauthorized: boolean
   page: number
   hasMore: boolean
   onLoadMore: () => void
@@ -386,6 +393,26 @@ function ListView({
     return acc
   }, {})
   const sortedMonths = Object.keys(grouped).sort().reverse()
+
+  if (unauthorized && reports.length === 0) {
+    return (
+      <div className="p-6 rounded-2xl border border-mentat-border-card bg-mentat-bg-card">
+        <div className="flex items-center gap-3 text-sm text-mentat-text-secondary">
+          <AlertCircle className="w-5 h-5 text-gold shrink-0" />
+          请先登录后查看历史报告
+        </div>
+        <div className="mt-4">
+          <Link
+            href="/sign-in?redirect_url=/reports"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors"
+          >
+            去登录
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (error && reports.length === 0) {
     return (
@@ -449,13 +476,13 @@ function ListView({
 
       <div className="pt-4 pb-2 rounded-xl border border-mentat-border-card bg-mentat-bg-page/50 px-4 py-3 text-center">
         <p className="text-[11px] text-mentat-muted-tertiary mb-2">
-          订阅后可回溯最近 7 天完整报告，含市场综述、行情快照、新闻脉络、期权策略等
+          登录后可回看完整历史报告，含市场综述、行情快照、新闻脉络、期权策略等
         </p>
         <Link
-          href={isSignedIn ? '/subscribe' : '/sign-up?redirect_url=/reports'}
+          href={isSignedIn ? '/reports/latest' : '/sign-in?redirect_url=/reports'}
           className="inline-flex items-center gap-2 text-gold text-sm font-medium hover:underline"
         >
-          {isSignedIn ? '免费订阅' : '免费注册查看完整'}
+          {isSignedIn ? '查看今日报告' : '登录后查看完整'}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -480,6 +507,7 @@ export default function ReportsPage() {
   const [details, setDetails] = useState<Record<string, ReportDetail>>({})
   const [listLoading, setListLoading] = useState(false)
   const [listError, setListError] = useState(false)
+  const [listUnauthorized, setListUnauthorized] = useState(false)
   const [listPage, setListPage] = useState(1)
   const [listHasMore, setListHasMore] = useState(false)
   const [listLoaded, setListLoaded] = useState(false)
@@ -493,6 +521,7 @@ export default function ReportsPage() {
   const loadReports = useCallback(async (p: number): Promise<ReportItem[]> => {
     setListLoading(true)
     try {
+      setListUnauthorized(false)
       const token = await getToken()
       const data = await reportsApi.list(p, PAGE_SIZE, token, 'archive')
       const items: ReportItem[] =
@@ -502,7 +531,15 @@ export default function ReportsPage() {
       setListError(false)
       setListLoaded(true)
       return items
-    } catch {
+    } catch (error: unknown) {
+      if (isAuthApiError(error)) {
+        if (p === 1) setReports([])
+        setListUnauthorized(true)
+        setListError(false)
+        setListHasMore(false)
+        setListLoaded(true)
+        return []
+      }
       setListError(true)
       return []
     } finally {
@@ -588,7 +625,7 @@ export default function ReportsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="mb-4 rounded-xl border border-mentat-border-card bg-mentat-bg-card/70 px-4 py-3 flex items-center justify-between gap-3">
           <p className="text-xs text-mentat-muted-secondary">
-            归档模块仅展示历史报告；今日最新请从“最新报告”进入。
+            历史模块仅展示往期报告；今日内容请从“最新报告”进入。
           </p>
           <Link
             href="/reports/latest"
@@ -600,15 +637,15 @@ export default function ReportsPage() {
         </div>
 
         <div className="mb-4">
-          <h1 className="text-xl sm:text-2xl font-semibold text-mentat-text mb-1">报告归档</h1>
-          <p className="text-mentat-muted-secondary text-sm">按列表或日历回看往期日报，不与最新报告重复</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-mentat-text mb-1">历史报告</h1>
+          <p className="text-mentat-muted-secondary text-sm">按列表或日历回看往期日报</p>
         </div>
 
         <div className="grid gap-5 lg:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
           <aside className="hidden lg:block">
             <div className="sticky top-20 space-y-4">
               <div className="rounded-2xl border border-mentat-border-card bg-gradient-to-b from-mentat-bg-card to-mentat-bg-page px-4 py-4">
-                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em] mb-3">Archive Navigator</p>
+                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em] mb-3">历史导航</p>
                 <div className="grid gap-2">
                   <button
                     onClick={() => setMode('list')}
@@ -646,7 +683,7 @@ export default function ReportsPage() {
               </div>
 
               <div className="rounded-2xl border border-mentat-border-card bg-mentat-bg-card px-4 py-4 space-y-3">
-                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em]">Archive Stats</p>
+                <p className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.14em]">历史统计</p>
                 <div className="flex items-start gap-2">
                   <Layers className="w-4 h-4 mt-0.5 text-gold shrink-0" />
                   <div>
@@ -664,7 +701,7 @@ export default function ReportsPage() {
                 <div className="flex items-start gap-2">
                   <Clock3 className="w-4 h-4 mt-0.5 text-gold shrink-0" />
                   <div>
-                    <p className="text-xs text-mentat-muted-secondary">最近归档日期</p>
+                    <p className="text-xs text-mentat-muted-secondary">最近报告日期</p>
                     <p className="text-sm font-semibold text-mentat-text">{latestArchiveDate}</p>
                   </div>
                 </div>
@@ -717,6 +754,7 @@ export default function ReportsPage() {
                 details={details}
                 loading={listLoading && !listLoaded}
                 error={listError}
+                unauthorized={listUnauthorized}
                 page={listPage}
                 hasMore={listHasMore}
                 onLoadMore={handleLoadMore}

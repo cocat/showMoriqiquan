@@ -52,14 +52,14 @@ function EmptyStateSubscriptionFirst() {
       </div>
       <h3 className="text-lg font-semibold text-white mb-2">今日报告即将生成</h3>
       <p className="text-mentat-text-secondary text-sm max-w-sm mx-auto mb-6 leading-relaxed">
-        每日早 8 点送达，一份报告覆盖情绪、预警、新闻与策略。订阅后第一时间推送，内测免费。
+        每日早 8 点送达，一份报告覆盖情绪、预警、新闻与策略。登录后即可继续查看完整内容。
       </p>
       <Link
-        href="/subscribe"
+        href="/sign-in?redirect_url=/reports/latest"
         className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
       >
         <Mail className="w-4 h-4" />
-        免费订阅，抢先接收
+        登录后查看
       </Link>
     </div>
   )
@@ -108,7 +108,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
     getToken().then((token) => {
       if (cancelled) return
       reportsApi
-        .latestSummary(token)
+        .latestSummary(token, { forceRefresh: true })
         .then((d) => { if (!cancelled) setData(d) })
         .catch(() => { if (!cancelled) setError(true) })
         .finally(() => { if (!cancelled) setLoading(false) })
@@ -170,7 +170,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
                 {data.title || `${data.report_date} 市场情报日报`}
               </h3>
               <p className="text-sm text-mentat-muted-secondary mt-3 max-w-3xl">
-                高密度压缩当日关键信号，覆盖风险级别、事件温度与市场情绪轨迹。
+                浓缩当天关键信号，帮你快速看懂风险级别、事件热度和市场情绪。
               </p>
             </div>
 
@@ -202,7 +202,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
           )}
 
           <div className="mt-4 rounded-xl bg-black/30 px-3 py-2 text-[10px] text-mentat-muted-secondary font-mono uppercase tracking-[0.14em]">
-            Signal Density · Alerts · Theme Coverage · Multi-Source Depth · Sentiment Structure
+            信号密度 · 预警数量 · 主题覆盖 · 多源验证 · 情绪结构
           </div>
 
           <div className="mt-3 rounded-xl bg-black/35 overflow-x-auto">
@@ -218,7 +218,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
               <div className="grid grid-cols-6 gap-3 px-4 pb-3">
                 <div>
                   <div className="text-xl font-mono font-semibold leading-none text-white">{String(items)}</div>
-                  <div className="text-[10px] text-mentat-muted-secondary mt-1">items/day</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">条/天</div>
                 </div>
                 <div>
                   <div className={`text-xl font-mono font-semibold leading-none ${totalAlerts > 0 ? 'text-mentat-warning' : 'text-white'}`}>{String(totalAlerts)}</div>
@@ -226,19 +226,19 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
                 </div>
                 <div>
                   <div className={`text-xl font-mono font-semibold leading-none ${red > 0 ? 'text-mentat-danger' : 'text-white'}`}>{criticalShare}</div>
-                  <div className="text-[10px] text-mentat-muted-secondary mt-1">red in alerts</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">重大预警占比</div>
                 </div>
                 <div>
                   <div className={`text-xl font-mono font-semibold leading-none ${totalAlerts > 0 ? 'text-gold' : 'text-white'}`}>{alertDensity}</div>
-                  <div className="text-[10px] text-mentat-muted-secondary mt-1">alerts/signals</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">预警密度</div>
                 </div>
                 <div>
                   <div className="text-xl font-mono font-semibold leading-none text-white">{String(topics)}</div>
-                  <div className="text-[10px] text-mentat-muted-secondary mt-1">tracked topics</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">跟踪主题数</div>
                 </div>
                 <div>
                   <div className="text-xl font-mono font-semibold leading-none text-gold">{sentimentText}</div>
-                  <div className="text-[10px] text-mentat-muted-secondary mt-1">regime</div>
+                  <div className="text-[10px] text-mentat-muted-secondary mt-1">当前情绪</div>
                 </div>
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
       </Link>
 
       <div className="relative px-6 sm:px-8 py-4 bg-black/35 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <span className="text-xs text-mentat-text-secondary text-center sm:text-left">每日早 8 点送达 · 内测免费</span>
+        <span className="text-xs text-mentat-text-secondary text-center sm:text-left">每日早 8 点送达 · 登录即可完整查看</span>
         <div className="flex items-center justify-center sm:justify-end gap-2">
           <Link
             href={`/reports/${data.report_date}`}
@@ -301,11 +301,11 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <Link
-            href={isSignedIn ? '/subscribe' : '/sign-up?redirect_url=/reports/latest'}
+            href={isSignedIn ? '/reports/latest' : '/sign-in?redirect_url=/reports/latest'}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
           >
             <Bell className="w-4 h-4" />
-            {isSignedIn ? '订阅解锁完整' : '免费注册查看完整'}
+            {isSignedIn ? '进入最新报告' : '登录后查看完整'}
           </Link>
         </div>
       </div>
