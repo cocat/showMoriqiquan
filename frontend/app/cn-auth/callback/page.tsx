@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { authApi } from '@/lib/api'
+import { captureAttributionIfPresent } from '@/lib/attribution'
 
 export default function CnAuthCallbackPage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function CnAuthCallbackPage() {
   const [message, setMessage] = useState('正在验证登录信息...')
 
   useEffect(() => {
+    captureAttributionIfPresent()
     const token = searchParams.get('token') || searchParams.get('access_token')
     const intent = searchParams.get('intent') || 'login'
     const returnUrl = searchParams.get('return_url') || '/dashboard'

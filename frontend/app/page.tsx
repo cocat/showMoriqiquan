@@ -201,7 +201,7 @@ export default function HomePage() {
   const leftAlerts = alerts.filter((_, index) => index % 2 === 0)
   const rightAlerts = alerts.filter((_, index) => index % 2 === 1)
   const loginHref = '/sign-in?redirect_url=/reports/latest'
-  const detailHref = loginHref
+  const detailHref = '/reports/latest'
   const generatedTime = latest?.generated_at
     ? new Date(latest.generated_at).toLocaleString('zh-CN', {
       month: '2-digit',

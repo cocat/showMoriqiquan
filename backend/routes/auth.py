@@ -18,6 +18,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.requests import Request
 
 from database import get_db
 from cache import cache_client
@@ -27,6 +28,7 @@ from middleware.auth import (
     resolve_external_identity,
     resolve_user_from_token,
 )
+from attribution import record_user_attribution_event
 from models.identity_account import IdentityAccount
 from models.user import User, UserTier
 
@@ -43,6 +45,7 @@ PHONE_OTP_HASH_SALT = os.getenv("PHONE_OTP_HASH_SALT", "phone_otp_salt").strip()
 
 class AuthExchangeRequest(BaseModel):
     token: Optional[str] = None
+    attribution: Optional[dict] = None
 
 
 class AuthLinkRequest(BaseModel):
@@ -200,6 +203,7 @@ def _send_sms_code(phone: str, otp: str) -> None:
 
 @router.post("/exchange")
 async def exchange_auth_token(
+    request: Request,
     body: AuthExchangeRequest,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),
@@ -220,6 +224,13 @@ async def exchange_auth_token(
         db.rollback()
         raise HTTPException(status_code=503, detail="database temporarily unavailable") from exc
     app_token = issue_app_access_token(user.user_id, provider=provider)
+    record_user_attribution_event(
+        db,
+        user_id=user.user_id,
+        event_type="auth_exchange",
+        request=request,
+        payload=(body.attribution if body else None),
+    )
 
     return {
         "provider": provider,
@@ -368,6 +379,7 @@ async def phone_send_otp(body: PhoneSendRequest):
 class PhoneVerifyRequest(BaseModel):
     phone: str
     otp: str
+    attribution: Optional[dict] = None
 
 
 class PhoneVerifyResponse(BaseModel):
@@ -378,6 +390,7 @@ class PhoneVerifyResponse(BaseModel):
 
 @router.post("/phone/verify", response_model=PhoneVerifyResponse)
 async def phone_verify_otp(
+    request: Request,
     body: PhoneVerifyRequest,
     db: Session = Depends(get_db),
 ):
@@ -446,5 +459,12 @@ async def phone_verify_otp(
 
     # 清理 otp，防止重放
     cache_client.set_json(_otp_cache_key(phone), {"hash": ""}, 1)
+    record_user_attribution_event(
+        db,
+        user_id=user.user_id,
+        event_type="phone_verify",
+        request=request,
+        payload=body.attribution,
+    )
 
     return PhoneVerifyResponse(ok=True, app_token=app_token, user=_serialize_user(user))

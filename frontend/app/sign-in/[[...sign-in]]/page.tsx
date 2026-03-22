@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
 import { useAppAuth } from '@/app/providers'
+import { captureAttributionIfPresent, getAttributionPayload } from '@/lib/attribution'
 
 export default function SignInPage() {
   const searchParams = useSearchParams()
@@ -20,6 +21,10 @@ export default function SignInPage() {
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [debugOtp, setDebugOtp] = useState<string | null>(null)
+
+  useEffect(() => {
+    captureAttributionIfPresent()
+  }, [])
 
   useEffect(() => {
     setError(null)
@@ -44,7 +49,7 @@ export default function SignInPage() {
     setVerifying(true)
     setError(null)
     try {
-      const res = await authApi.phoneVerify(phone, otp)
+      const res = await authApi.phoneVerify(phone, otp, getAttributionPayload())
       if (!res.app_token) throw new Error('未获取到登录 token')
       await signInWithAppToken(res.app_token, {
         firstName: res.user?.phone || '用户',

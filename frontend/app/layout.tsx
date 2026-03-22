@@ -5,6 +5,7 @@ import GoogleAnalytics from './components/GoogleAnalytics'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://mentat.hk'),
   title: 'mentat vision - 市场情报日报',
   description: 'mentat vision 市场情报日报展示系统 · 北京优斯莱斯科技有限公司',
 }

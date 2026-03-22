@@ -4,6 +4,20 @@
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+export type AttributionPayload = {
+  domain?: string | null
+  landing_url?: string | null
+  referrer?: string | null
+  referrer_host?: string | null
+  platform?: string | null
+  source?: string | null
+  medium?: string | null
+  campaign?: string | null
+  content?: string | null
+  term?: string | null
+  captured_at?: string | null
+}
+
 const CACHE_PREFIX = 'mv_api:'
 const DEFAULT_TTL = 60 * 1000 // 1 分钟
 const REPORT_TTL = 5 * 60 * 1000 // 5 分钟（报告详情）
@@ -177,11 +191,11 @@ export const usersApi = {
 }
 
 export const authApi = {
-  exchange: (token: string) =>
+  exchange: (token: string, attribution?: AttributionPayload | null) =>
     fetch(`${API_URL}/api/auth/exchange`, {
       method: 'POST',
       headers: getHeaders(token),
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, attribution: attribution || undefined }),
     }).then(async (res) => {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -258,11 +272,11 @@ export const authApi = {
       return res.json() as Promise<{ ok: boolean; debug_otp?: string | null }>
     }),
 
-  phoneVerify: (phone: string, otp: string) =>
+  phoneVerify: (phone: string, otp: string, attribution?: AttributionPayload | null) =>
     fetch(`${API_URL}/api/auth/phone/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, otp }),
+      body: JSON.stringify({ phone, otp, attribution: attribution || undefined }),
     }).then(async (res) => {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

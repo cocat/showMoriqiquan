@@ -134,12 +134,14 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                {/* 首页手机号登录入口先下掉，暂时保留代码不删除
                 <Link
                   href="/sign-in?redirect_url=/dashboard"
                   className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors"
                 >
                   手机号登录
                 </Link>
+                */}
                 <SignInButton mode="modal">
                   <button
                     type="button"
@@ -229,6 +231,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+                {/* 首页手机号登录入口先下掉，暂时保留代码不删除
                 <Link
                   href="/sign-in?redirect_url=/dashboard"
                   className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
@@ -236,6 +239,7 @@ export default function Navbar() {
                 >
                   手机号登录
                 </Link>
+                */}
                 <SignInButton mode="modal">
                   <button
                     type="button"

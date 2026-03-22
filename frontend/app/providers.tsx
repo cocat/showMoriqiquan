@@ -3,6 +3,7 @@
 import { ClerkProvider, useAuth, useUser } from '@clerk/nextjs'
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { authApi } from '@/lib/api'
+import { captureAttributionIfPresent, getAttributionPayload } from '@/lib/attribution'
 
 const APP_TOKEN_STORAGE_KEY = 'mv_app_token'
 const APP_USER_STORAGE_KEY = 'mv_app_user'
@@ -55,6 +56,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const exchangeAttemptedRef = useRef(false)
 
   useEffect(() => {
+    captureAttributionIfPresent()
     try {
       const savedToken = localStorage.getItem(APP_TOKEN_STORAGE_KEY)
       if (savedToken) setAppToken(savedToken)
@@ -87,7 +89,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   }, [persistAppSession])
 
   const exchangeExternalToken = useCallback(async (token: string) => {
-    const res = await authApi.exchange(token)
+    const res = await authApi.exchange(token, getAttributionPayload())
     const nextToken = res.app_token || null
     const nextUser: AppUser = res.user
       ? { firstName: res.user.phone || '用户', emailAddresses: [] }

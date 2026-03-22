@@ -18,7 +18,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from routes import reports, health, users, payments, auth
-from database import ensure_performance_indexes
+from database import ensure_performance_indexes, engine
+from attribution import ensure_attribution_tables
 
 app = FastAPI(
     title="moriqiquanHtml API",
@@ -88,6 +89,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 @app.on_event("startup")
 async def startup_tasks():
     ensure_performance_indexes()
+    ensure_attribution_tables(engine)
 
 
 @app.get("/")
