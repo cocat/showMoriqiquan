@@ -23,7 +23,7 @@ const DEFAULT_TTL = 60 * 1000 // 1 分钟
 const REPORT_TTL = 5 * 60 * 1000 // 5 分钟（报告详情）
 const CALENDAR_TTL = 10 * 60 * 1000 // 10 分钟（日历）
 const REPORT_LIST_TTL = 3 * 60 * 1000 // 3 分钟（归档列表）
-const LATEST_SUMMARY_TTL = 20 * 1000 // 20 秒（最新摘要）
+const LATEST_SUMMARY_TTL = 3 * 60 * 1000 // 3 分钟（最新摘要；与报告类接口同一量级，减少重复请求）
 
 function getStorageKey(key: string) {
   return CACHE_PREFIX + key

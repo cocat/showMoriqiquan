@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
 import { ArrowRight, Bell, CalendarDays, AlertTriangle, BarChart2, Lock } from 'lucide-react'
@@ -148,15 +149,25 @@ export default function LatestReportPage() {
         if (cancelled) return
         setDetail(res as FullReport)
         const msg = typeof res?.message === 'string' ? res.message : ''
-        setAccessMessage(msg)
-        setIsRestricted(Boolean(msg))
+        // 已登录用户按产品策略展示完整模块，不再套用访客/角色的摘要锁定提示
+        if (isSignedIn) {
+          setAccessMessage('')
+          setIsRestricted(false)
+        } else {
+          setAccessMessage(msg)
+          setIsRestricted(Boolean(msg))
+        }
       })
       .catch((error) => {
         if (cancelled) return
         const msg = (error as Error)?.message ?? ''
         if (msg.includes('401') || msg.includes('403')) {
           setIsRestricted(true)
-          setAccessMessage('当前角色仅开放摘要与部分模块，登录并开通权限后可查看完整信息。')
+          setAccessMessage(
+            isSignedIn
+              ? '完整报告加载失败，请刷新页面或重新登录后再试。'
+              : '当前角色仅开放摘要与部分模块，登录并开通权限后可查看完整信息。',
+          )
           return
         }
         setAccessMessage('加载完整报告失败，请稍后重试。')
@@ -165,7 +176,7 @@ export default function LatestReportPage() {
         if (!cancelled) setDetailLoading(false)
       })
     return () => { cancelled = true }
-  }, [latest?.report_date, getToken])
+  }, [latest?.report_date, getToken, isSignedIn])
 
   const sentimentData = detail?.sentiment ?? (
     latest?.sentiment_score != null || latest?.sentiment_level
@@ -183,6 +194,7 @@ export default function LatestReportPage() {
   const options = detail?.options
   const topics = detail?.topic_comparisons ?? []
   const overviewContent = detail?.overview?.content || overviewExcerpt
+  const effectiveRestricted = isRestricted && !isSignedIn
 
   return (
     <div className="min-h-screen bg-mentat-bg-page">
@@ -196,7 +208,9 @@ export default function LatestReportPage() {
             今日市场摘要：3 分钟看懂风险与机会
           </h1>
           <p className="mt-2 text-sm text-mentat-text-secondary max-w-2xl">
-            最新报告直接在本页展开。系统会按你的角色自动显示完整模块或锁定部分内容。
+            {isSignedIn
+              ? '最新报告直接在本页展开，登录状态下可查看完整模块。'
+              : '最新报告直接在本页展开；登录后可查看完整模块，未登录时部分内容为摘要预览。'}
           </p>
         </div>
       </section>
@@ -283,7 +297,7 @@ export default function LatestReportPage() {
                   </section>
                 )}
 
-                {isRestricted ? (
+                {effectiveRestricted ? (
                   <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
                     <SectionPlaceholder title="市场行情快照" message="当前角色未开放该模块" />
                   </section>
@@ -308,7 +322,7 @@ export default function LatestReportPage() {
                   </section>
                 )}
 
-                {isRestricted ? (
+                {effectiveRestricted ? (
                   <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
                     <SectionPlaceholder title="核心预警" message="当前角色仅开放摘要，预警详情已锁定" />
                   </section>
@@ -320,7 +334,7 @@ export default function LatestReportPage() {
                   </section>
                 )}
 
-                {isRestricted ? (
+                {effectiveRestricted ? (
                   <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
                     <SectionPlaceholder title="新闻简报" message="当前角色未开放该模块" />
                   </section>
@@ -332,7 +346,7 @@ export default function LatestReportPage() {
                   </section>
                 )}
 
-                {isRestricted ? (
+                {effectiveRestricted ? (
                   <>
                     <section id="options" className="scroll-mt-28 xl:scroll-mt-20">
                       <SectionPlaceholder title="期权策略" message="当前角色未开放该模块" />
@@ -371,13 +385,15 @@ export default function LatestReportPage() {
                     <p className="text-xs text-mentat-text-secondary mt-1">
                       当前按角色展示内容，登录后会自动按你的权限加载可查看的完整信息。
                     </p>
-                    <Link
-                      href="/sign-in?redirect_url=/reports/latest"
-                      className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                    >
-                      去登录
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                      >
+                        去登录
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </SignInButton>
                   </div>
                 </div>
               </div>
@@ -387,13 +403,25 @@ export default function LatestReportPage() {
           <div className="rounded-2xl border border-mentat-border-card bg-mentat-bg-card p-8 text-center">
             <p className="text-mentat-text-secondary mb-4">当前还没有可展示的最新报告</p>
             <div className="px-6 py-5 border-b border-mentat-border-card">
-              <Link
-                href="/sign-in?redirect_url=/reports/latest"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-              >
-                登录后继续查看
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {isSignedIn ? (
+                <Link
+                  href="/reports"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                >
+                  浏览历史报告
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                  >
+                    登录后继续查看
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </SignInButton>
+              )}
             </div>
           </div>
         )}

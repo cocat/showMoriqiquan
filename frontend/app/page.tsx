@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
 import { InsightCard, SectionHeader } from './components/HomePrimitives'
@@ -119,23 +120,20 @@ const loginHighlights = [
 ]
 
 export default function HomePage() {
-  const { getToken, authProvider } = useAppAuth()
+  const { getToken, authProvider, isSignedIn } = useAppAuth()
   const [latest, setLatest] = useState<LatestSummary | null>(null)
   const [overviewExcerpt, setOverviewExcerpt] = useState<string>('')
   const [alerts, setAlerts] = useState<AlertPreview[]>([])
   const [loading, setLoading] = useState(true)
-  const summaryFetchedRef = useRef(false)
   const alertsFetchedDateRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (summaryFetchedRef.current) return
-    summaryFetchedRef.current = true
     let cancelled = false
     setLoading(true)
     getToken().then((token) => {
       if (cancelled) return
       reportsApi
-        .latestSummaryBundle(token, { forceRefresh: true })
+        .latestSummaryBundle(token)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then((d: any) => {
           if (cancelled) return
@@ -156,7 +154,7 @@ export default function HomePage() {
         })
     })
     return () => { cancelled = true }
-  }, [getToken])
+  }, [getToken, authProvider])
 
   useEffect(() => {
     const reportDate = latest?.report_date
@@ -200,8 +198,8 @@ export default function HomePage() {
     : null
   const leftAlerts = alerts.filter((_, index) => index % 2 === 0)
   const rightAlerts = alerts.filter((_, index) => index % 2 === 1)
-  const loginHref = '/sign-in?redirect_url=/reports/latest'
   const detailHref = '/reports/latest'
+  const afterSignInUrl = '/reports/latest'
   const generatedTime = latest?.generated_at
     ? new Date(latest.generated_at).toLocaleString('zh-CN', {
       month: '2-digit',
@@ -498,46 +496,64 @@ export default function HomePage() {
               <Sparkles className="w-8 h-8 text-gold mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-white mb-2">今日日报已生成</h3>
               <p className="text-mentat-text-secondary text-sm max-w-sm mx-auto mb-5">
-                今日内容已就绪，登录后即可查看完整报告（含情绪、预警、新闻与策略）。
+                {isSignedIn
+                  ? '今日内容已就绪，点击下方进入报告页查看完整内容（含情绪、预警、新闻与策略）。'
+                  : '今日内容已就绪，登录后即可查看完整报告（含情绪、预警、新闻与策略）。'}
               </p>
-              <Link
-                href={loginHref}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-              >
-                登录后查看今日报告
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {isSignedIn ? (
+                <Link
+                  href={detailHref}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                >
+                  查看今日报告
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                  >
+                    登录后查看今日报告
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </SignInButton>
+              )}
             </div>
           )}
         </div>
       </section>
 
-      {/* ===== 登录 CTA 横幅 ===== */}
-      <section className="border-b border-mentat-border-section bg-gradient-to-r from-[#181c26] via-[#12161e] to-[#0f1218]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              登录后即可查看完整日报与往期内容
-            </h3>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
-              {loginHighlights.map((item) => (
-                <span key={item} className="text-[11px] text-mentat-text-secondary">
-                  · {item}
-                </span>
-              ))}
+      {/* ===== 登录 CTA 横幅（未登录时展示） ===== */}
+      {!isSignedIn && (
+        <section className="border-b border-mentat-border-section bg-gradient-to-r from-[#181c26] via-[#12161e] to-[#0f1218]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                登录后即可查看完整日报与往期内容
+              </h3>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                {loginHighlights.map((item) => (
+                  <span key={item} className="text-[11px] text-mentat-text-secondary">
+                    · {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
+                >
+                  立即登录查看
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </SignInButton>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Link
-              href={loginHref}
-              className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
-            >
-              立即登录查看
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 三卖点 */}
       <section className="border-t border-mentat-border-section py-10 bg-mentat-bg-page">
@@ -597,19 +613,36 @@ export default function HomePage() {
             <div className="rounded-xl border-2 border-gold bg-mentat-bg-elevated p-5 flex flex-col relative">
               <div className="absolute -top-px right-4 px-2 py-0.5 rounded-b-md bg-gold text-[10px] font-semibold text-mentat-bg-page uppercase tracking-wider">推荐</div>
               <div className="text-[10px] font-mono uppercase tracking-[0.12em] mb-2 text-[#9FB9E5]">step 2</div>
-              <h3 className="text-sm font-semibold text-white mb-2">登录后继续阅读</h3>
-              <p className="text-xs text-mentat-text-secondary mb-3 flex-1">只需登录即可查看完整模块，不用额外操作。</p>
+              <h3 className="text-sm font-semibold text-white mb-2">
+                {isSignedIn ? '查看完整日报' : '登录后继续阅读'}
+              </h3>
+              <p className="text-xs text-mentat-text-secondary mb-3 flex-1">
+                {isSignedIn
+                  ? '你已登录，可直接打开完整模块与历史报告。'
+                  : '只需登录即可查看完整模块，不用额外操作。'}
+              </p>
               <ul className="text-[11px] text-mentat-text-secondary space-y-1 mb-4">
                 <li>· 完整日报模块</li>
                 <li>· 历史报告回看</li>
               </ul>
               <div className="mt-auto">
-                <Link
-                  href={loginHref}
-                  className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                >
-                  去登录查看
-                </Link>
+                {isSignedIn ? (
+                  <Link
+                    href={detailHref}
+                    className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                  >
+                    查看今日报告
+                  </Link>
+                ) : (
+                  <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                    >
+                      去登录查看
+                    </button>
+                  </SignInButton>
+                )}
               </div>
             </div>
             <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card p-5 flex flex-col opacity-95">

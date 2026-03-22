@@ -54,6 +54,9 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const [appToken, setAppToken] = useState<string | null>(null)
   const [appUser, setAppUser] = useState<AppUser>(null)
   const exchangeAttemptedRef = useRef(false)
+  // Clerk 的 getToken 引用常随渲染变化；放进 useCallback 依赖会导致全站 useEffect 反复触发、重复打 API
+  const authGetTokenRef = useRef(auth.getToken)
+  authGetTokenRef.current = auth.getToken
 
   useEffect(() => {
     captureAttributionIfPresent()
@@ -113,11 +116,11 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     if (exchangeAttemptedRef.current) return
     exchangeAttemptedRef.current = true
 
-    auth.getToken().then((token) => {
+    authGetTokenRef.current().then((token) => {
       if (!token) return
       exchangeExternalToken(token).catch(() => undefined)
     })
-  }, [auth.isLoaded, auth.isSignedIn, auth.getToken, appToken, exchangeExternalToken])
+  }, [auth.isLoaded, auth.isSignedIn, appToken, exchangeExternalToken])
 
   const clearSession = useCallback(async () => {
     exchangeAttemptedRef.current = false
@@ -130,10 +133,10 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const getToken = useCallback(async () => {
     if (appToken) return appToken
     if (auth.isSignedIn) {
-      return auth.getToken()
+      return authGetTokenRef.current()
     }
     return null
-  }, [appToken, auth.isSignedIn, auth.getToken])
+  }, [appToken, auth.isSignedIn])
 
   const value: AppAuthValue = {
     isLoaded: auth.isLoaded,

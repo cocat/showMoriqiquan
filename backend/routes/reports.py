@@ -50,14 +50,14 @@ def _full_report_load_options():
 
 
 def _require_archive_access(user: Optional[User]) -> UserTier:
-    """归档模块强鉴权：未登录拒绝；guest（含到期降级）拒绝。"""
+    """归档模块强鉴权：未登录拒绝；已登录即可访问（含到期降为 guest 的账号）。"""
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
     tier = get_effective_tier(user)
-    if not tier or tier == UserTier.GUEST:
+    if not tier:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Archive access requires active subscription",
@@ -83,7 +83,7 @@ def _within_observer_window(report: Report) -> bool:
 
 
 def _assert_archive_report_access(report: Report, tier: UserTier) -> None:
-    if tier == UserTier.OBSERVER and not _within_observer_window(report):
+    if tier in (UserTier.OBSERVER, UserTier.GUEST) and not _within_observer_window(report):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Report is outside observer 7-day archive window",
@@ -230,7 +230,7 @@ async def list_reports(
         if latest_report_id:
             query = query.filter(Report.report_id != latest_report_id)
 
-    if tier == UserTier.OBSERVER:
+    if tier in (UserTier.OBSERVER, UserTier.GUEST):
         seven_days_ago = _observer_cutoff_utc()
         query = query.filter(Report.generated_at >= seven_days_ago)
 
@@ -275,7 +275,7 @@ async def get_calendar(
         .filter(Report.report_date >= start_str, Report.report_date <= end_str)
         .distinct()
     )
-    if tier == UserTier.OBSERVER:
+    if tier in (UserTier.OBSERVER, UserTier.GUEST):
         subq = subq.filter(Report.generated_at >= _observer_cutoff_utc())
     rows = subq.all()
     dates: List[str] = sorted({r.report_date for r in rows if r.report_date})
@@ -383,7 +383,8 @@ async def get_full_report(
 async def _get_full_or_preview(
     report: Report, user: Optional[User], db: Session
 ):
-    guest = not user or get_effective_tier(user) == UserTier.GUEST
+    # 已携带用户且已通过归档鉴权时返回完整报告；预览仅用于未登录场景（本路由通常不会走到）
+    guest = not user
 
     if guest:
         base = report.to_preview()

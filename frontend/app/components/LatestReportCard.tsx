@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
 import { ArrowRight, Bell, Mail, Sparkles, FileText, AlertTriangle, Layers, Radio } from 'lucide-react'
@@ -44,6 +45,7 @@ const levelLabel = (level?: string) => {
 }
 
 function EmptyStateSubscriptionFirst() {
+  const { isSignedIn } = useAppAuth()
   return (
     <div className="relative rounded-[28px] overflow-hidden bg-gradient-to-br from-mentat-bg-elevated via-mentat-bg-card to-black p-8 sm:p-10 text-center shadow-[0_24px_70px_-26px_rgba(0,0,0,0.9)]">
       <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gold/15 blur-3xl" />
@@ -52,15 +54,29 @@ function EmptyStateSubscriptionFirst() {
       </div>
       <h3 className="text-lg font-semibold text-white mb-2">今日报告即将生成</h3>
       <p className="text-mentat-text-secondary text-sm max-w-sm mx-auto mb-6 leading-relaxed">
-        每日早 8 点送达，一份报告覆盖情绪、预警、新闻与策略。登录后即可继续查看完整内容。
+        {isSignedIn
+          ? '每日早 8 点送达。你已登录，报告生成后即可在「最新报告」页查看完整内容。'
+          : '每日早 8 点送达，一份报告覆盖情绪、预警、新闻与策略。登录后即可继续查看完整内容。'}
       </p>
-      <Link
-        href="/sign-in?redirect_url=/reports/latest"
-        className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-      >
-        <Mail className="w-4 h-4" />
-        登录后查看
-      </Link>
+      {isSignedIn ? (
+        <Link
+          href="/reports"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+        >
+          <Mail className="w-4 h-4" />
+          浏览历史报告
+        </Link>
+      ) : (
+        <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            登录后查看
+          </button>
+        </SignInButton>
+      )}
     </div>
   )
 }
@@ -108,7 +124,7 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
     getToken().then((token) => {
       if (cancelled) return
       reportsApi
-        .latestSummary(token, { forceRefresh: true })
+        .latestSummary(token)
         .then((d) => { if (!cancelled) setData(d) })
         .catch(() => { if (!cancelled) setError(true) })
         .finally(() => { if (!cancelled) setLoading(false) })
@@ -291,7 +307,9 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
       </Link>
 
       <div className="relative px-6 sm:px-8 py-4 bg-black/35 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <span className="text-xs text-mentat-text-secondary text-center sm:text-left">每日早 8 点送达 · 登录即可完整查看</span>
+        <span className="text-xs text-mentat-text-secondary text-center sm:text-left">
+          {isSignedIn ? '每日早 8 点送达 · 可查看完整报告' : '每日早 8 点送达 · 登录即可完整查看'}
+        </span>
         <div className="flex items-center justify-center sm:justify-end gap-2">
           <Link
             href={`/reports/${data.report_date}`}
@@ -300,13 +318,25 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
             查看样本
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-          <Link
-            href={isSignedIn ? '/reports/latest' : '/sign-in?redirect_url=/reports/latest'}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
-          >
-            <Bell className="w-4 h-4" />
-            {isSignedIn ? '进入最新报告' : '登录后查看完整'}
-          </Link>
+          {isSignedIn ? (
+            <Link
+              href="/reports/latest"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              进入最新报告
+            </Link>
+          ) : (
+            <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
+              >
+                <Bell className="w-4 h-4" />
+                登录后查看完整
+              </button>
+            </SignInButton>
+          )}
         </div>
       </div>
     </div>

@@ -147,7 +147,7 @@ export default function Navbar() {
                     type="button"
                     className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors"
                   >
-                    Clerk 登录
+                    登录
                   </button>
                 </SignInButton>
                 <Link
@@ -246,7 +246,7 @@ export default function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
                   >
-                    Clerk 登录
+                    登录
                   </button>
                 </SignInButton>
                 <Link
