@@ -102,15 +102,12 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     }
   }, [persistAppSession])
 
-  // Clerk 登录后，尽量交换为 app_token；失败则仍可直接使用 Clerk token。
+  // Clerk 登录后尝试 exchange（归因 / 可选 app_token）。不要用本地 app_token 短路：
+  // 否则用户先手机号登录再谷歌登录时，旧 app_token 会阻止 exchange，且旧 token 还会导致 API 401。
   useEffect(() => {
     if (!auth.isLoaded) return
     if (!auth.isSignedIn) {
       exchangeAttemptedRef.current = false
-      return
-    }
-    if (appToken) {
-      exchangeAttemptedRef.current = true
       return
     }
     if (exchangeAttemptedRef.current) return
@@ -120,7 +117,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
       if (!token) return
       exchangeExternalToken(token).catch(() => undefined)
     })
-  }, [auth.isLoaded, auth.isSignedIn, appToken, exchangeExternalToken])
+  }, [auth.isLoaded, auth.isSignedIn, exchangeExternalToken])
 
   const clearSession = useCallback(async () => {
     exchangeAttemptedRef.current = false
@@ -130,18 +127,25 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     }
   }, [auth, persistAppSession])
 
+  // Clerk 已登录时必须优先用 Clerk JWT。若仍优先返回 localStorage 里的旧 app_token（手机号会话），
+  // 多为过期 HS256，后端会 401，表现为已登录但全站报告接口拉不到数据。
   const getToken = useCallback(async () => {
-    if (appToken) return appToken
     if (auth.isSignedIn) {
-      return authGetTokenRef.current()
+      try {
+        const clerkJwt = await authGetTokenRef.current()
+        if (clerkJwt) return clerkJwt
+      } catch {
+        // ignore
+      }
     }
+    if (appToken) return appToken
     return null
   }, [appToken, auth.isSignedIn])
 
   const value: AppAuthValue = {
     isLoaded: auth.isLoaded,
     isSignedIn: !!appToken || !!auth.isSignedIn,
-    authProvider: appToken ? 'phone' : auth.isSignedIn ? 'clerk' : 'none',
+    authProvider: auth.isSignedIn ? 'clerk' : appToken ? 'phone' : 'none',
     getToken,
     clearSession,
     signInWithAppToken,

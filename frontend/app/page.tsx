@@ -159,8 +159,8 @@ export default function HomePage() {
   useEffect(() => {
     const reportDate = latest?.report_date
     if (!reportDate) return
-    // /api/reports/date/* 需要统一 app_token，等 exchange 完成后再请求。
-    if (authProvider !== 'phone') return
+    // 已登录（Clerk 或手机号 app_token）即可拉取当日预警预览
+    if (!isSignedIn) return
     if (alertsFetchedDateRef.current === reportDate) return
     alertsFetchedDateRef.current = reportDate
 
@@ -177,7 +177,7 @@ export default function HomePage() {
       })
 
     return () => { cancelled = true }
-  }, [latest?.report_date, authProvider, getToken])
+  }, [latest?.report_date, isSignedIn, getToken])
 
   const color = levelColor(latest?.sentiment_level)
   const red = latest?.red_count ?? 0
