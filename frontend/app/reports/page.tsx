@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi, isNetworkError, API_URL } from '@/lib/api'
 import {
@@ -256,6 +257,8 @@ function CalendarView({
   onPrevMonth,
   onNextMonth,
   onLoadMonth,
+  isLoaded,
+  isSignedIn,
 }: {
   calendar: CalendarData | null
   loading: boolean
@@ -264,10 +267,13 @@ function CalendarView({
   onPrevMonth: () => void
   onNextMonth: () => void
   onLoadMonth: (date: Date) => void
+  isLoaded: boolean
+  isSignedIn: boolean
 }) {
   useEffect(() => {
+    if (!isLoaded) return
     onLoadMonth(current)
-  }, [current.getFullYear(), current.getMonth(), onLoadMonth])
+  }, [isLoaded, isSignedIn, current.getFullYear(), current.getMonth(), onLoadMonth])
 
   const hasReport = (d: Date) =>
     calendar?.dates?.includes(format(d, 'yyyy-MM-dd')) ?? false
@@ -394,7 +400,7 @@ function ListView({
   }, {})
   const sortedMonths = Object.keys(grouped).sort().reverse()
 
-  if (unauthorized && reports.length === 0) {
+  if (unauthorized && reports.length === 0 && !isSignedIn) {
     return (
       <div className="p-6 rounded-2xl border border-mentat-border-card bg-mentat-bg-card">
         <div className="flex items-center gap-3 text-sm text-mentat-text-secondary">
@@ -402,14 +408,28 @@ function ListView({
           请先登录后查看历史报告
         </div>
         <div className="mt-4">
-          <Link
-            href="/sign-in?redirect_url=/reports"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors"
-          >
-            去登录
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <SignInButton mode="modal" forceRedirectUrl="/reports">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors"
+            >
+              去登录
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </SignInButton>
         </div>
+      </div>
+    )
+  }
+
+  if (unauthorized && reports.length === 0 && isSignedIn) {
+    return (
+      <div className="p-6 rounded-2xl border border-mentat-border-card bg-mentat-bg-card">
+        <div className="flex items-center gap-3 text-sm text-mentat-text-secondary">
+          <AlertCircle className="w-5 h-5 text-gold shrink-0" />
+          已登录，正在同步历史报告列表…
+        </div>
+        <div className="mt-4 h-24 rounded-xl bg-mentat-bg-page border border-mentat-border-card animate-pulse" />
       </div>
     )
   }
@@ -499,7 +519,7 @@ function cacheKey(date: Date): string {
 }
 
 export default function ReportsPage() {
-  const { getToken, isSignedIn } = useAppAuth()
+  const { getToken, isSignedIn, isLoaded } = useAppAuth()
   const [mode, setMode] = useState<ViewMode>('list')
 
   // 列表数据（切换回列表时复用，不再重新请求）
@@ -517,6 +537,7 @@ export default function ReportsPage() {
   const [calendarCurrent, setCalendarCurrent] = useState(() => new Date())
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [calendarMessage, setCalendarMessage] = useState('')
+  const listRetryAfterSignInRef = useRef(false)
 
   const loadReports = useCallback(async (p: number): Promise<ReportItem[]> => {
     setListLoading(true)
@@ -574,14 +595,29 @@ export default function ReportsPage() {
     setDetails((prev) => ({ ...prev, ...next }))
   }, [getToken])
 
-  // 首次加载列表
+  // 等 Clerk 加载完成再请求，避免首屏 getToken 仍为 null → 401 → listLoaded 锁死、登录后也无法重试
   useEffect(() => {
+    if (!isLoaded) return
     if (!listLoaded && mode === 'list') {
       loadReports(1).then((items) => {
         loadDetails(items.slice(0, PREVIEW_COUNT))
       })
     }
-  }, [listLoaded, mode, loadReports, loadDetails])
+  }, [isLoaded, listLoaded, mode, loadReports, loadDetails])
+
+  // 先前匿名 401 已把 listLoaded 设为 true；用户完成谷歌登录后强制重试一次（仅一次，避免 401 死循环）
+  useEffect(() => {
+    if (!isSignedIn) listRetryAfterSignInRef.current = false
+  }, [isSignedIn])
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+    if (!listUnauthorized || reports.length > 0) return
+    if (listRetryAfterSignInRef.current) return
+    listRetryAfterSignInRef.current = true
+    setListUnauthorized(false)
+    setListLoaded(false)
+  }, [isLoaded, isSignedIn, listUnauthorized, reports.length])
 
   const handleLoadMore = useCallback(() => {
     const next = listPage + 1
@@ -747,6 +783,8 @@ export default function ReportsPage() {
                 onPrevMonth={() => setCalendarCurrent((d) => subMonths(d, 1))}
                 onNextMonth={() => setCalendarCurrent((d) => addMonths(d, 1))}
                 onLoadMonth={loadCalendarMonth}
+                isLoaded={isLoaded}
+                isSignedIn={isSignedIn}
               />
             ) : (
               <ListView
