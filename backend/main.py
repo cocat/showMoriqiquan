@@ -27,7 +27,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001")
+origins_str = os.getenv(
+    "CORS_ORIGINS",
+    (
+        "http://localhost:3000,http://localhost:3001,"
+        "http://127.0.0.1:3000,http://127.0.0.1:3001,"
+        "https://mentat.hk,https://www.mentat.hk"
+    ),
+)
 origins = [o.strip() for o in origins_str.split(",") if o.strip()]
 
 # 开发环境：用正则允许本地/内网 Origin（如 Next 的 Network 地址 http://10.x.x.x:3000），避免 CORS 预检 400

@@ -2,7 +2,34 @@
  * mentat vision API 客户端（持久缓存，localStorage）
  */
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const DEFAULT_API_URL =
+  process.env.NODE_ENV === 'production' ? 'https://www.mentat.hk' : 'http://localhost:8000'
+const API_URL_CONFIGURED = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
+
+function resolveApiUrlBase(): string {
+  // SSR 仍使用配置地址，避免 Node 环境相对地址 fetch 报错
+  if (typeof window === 'undefined') return API_URL_CONFIGURED
+
+  // 在 mentat.hk/www.mentat.hk 间统一走同源，避免跨域预检和重定向
+  const currentHost = window.location.hostname
+  if (currentHost === 'mentat.hk' || currentHost === 'www.mentat.hk') {
+    try {
+      const configuredHost = new URL(API_URL_CONFIGURED).hostname
+      if (configuredHost === 'mentat.hk' || configuredHost === 'www.mentat.hk') {
+        return ''
+      }
+    } catch {
+      return ''
+    }
+  }
+
+  return API_URL_CONFIGURED
+}
+
+function apiUrl(path: string): string {
+  const base = resolveApiUrlBase()
+  return base ? `${base}${path}` : path
+}
 
 export type AttributionPayload = {
   domain?: string | null
@@ -100,7 +127,7 @@ export const reportsApi = {
   list: (page = 1, pageSize = 20, token?: string | null, scope: 'archive' | 'all' = 'archive') =>
     cachedFetch(`reports:list:${scope}:${page}:${pageSize}:${token ?? ''}`, async () => {
       const res = await fetch(
-        `${API_URL}/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`,
+        apiUrl(`/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`),
         { headers: getHeaders(token) }
       )
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -109,7 +136,7 @@ export const reportsApi = {
 
   get: (reportId: string, token?: string | null) =>
     cachedFetch(`reports:get:${reportId}:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/reports/${reportId}`, {
+      const res = await fetch(apiUrl(`/api/reports/${reportId}`), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -118,7 +145,7 @@ export const reportsApi = {
 
   getFull: (reportId: string, token?: string | null) =>
     cachedFetch(`reports:full:${reportId}:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/reports/${reportId}/full`, {
+      const res = await fetch(apiUrl(`/api/reports/${reportId}/full`), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -127,7 +154,7 @@ export const reportsApi = {
 
   getByDate: (date: string, token?: string | null) =>
     cachedFetch(`reports:date:${date}:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/reports/date/${date}`, {
+      const res = await fetch(apiUrl(`/api/reports/date/${date}`), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -137,7 +164,7 @@ export const reportsApi = {
   getCalendar: (year: number, month: number, token?: string | null) =>
     cachedFetch(`reports:calendar:${year}:${month}:${token ?? ''}`, async () => {
       const res = await fetch(
-        `${API_URL}/api/reports/calendar?year=${year}&month=${month}`,
+        apiUrl(`/api/reports/calendar?year=${year}&month=${month}`),
         { headers: getHeaders(token) }
       )
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -146,7 +173,7 @@ export const reportsApi = {
 
   latestSummary: (token?: string | null, opts?: { forceRefresh?: boolean }) =>
     cachedFetch(`reports:latest:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/reports/latest/summary`, {
+      const res = await fetch(apiUrl('/api/reports/latest/summary'), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -156,7 +183,7 @@ export const reportsApi = {
 
   latestSummaryBundle: (token?: string | null, opts?: { forceRefresh?: boolean }) =>
     cachedFetch(`reports:latest:bundle:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/reports/latest/summary`, {
+      const res = await fetch(apiUrl('/api/reports/latest/summary'), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -166,7 +193,7 @@ export const reportsApi = {
 
 export const paymentsApi = {
   checkout: (plan: string, token: string | null) =>
-    fetch(`${API_URL}/api/payments/checkout`, {
+    fetch(apiUrl('/api/payments/checkout'), {
       method: 'POST',
       headers: getHeaders(token),
       body: JSON.stringify({ plan }),
@@ -182,7 +209,7 @@ export const paymentsApi = {
 export const usersApi = {
   stats: (token?: string | null) =>
     cachedFetch(`users:stats:${token ?? ''}`, async () => {
-      const res = await fetch(`${API_URL}/api/users/me`, {
+      const res = await fetch(apiUrl('/api/users/me'), {
         headers: getHeaders(token),
       })
       if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -192,7 +219,7 @@ export const usersApi = {
 
 export const authApi = {
   exchange: (token: string, attribution?: AttributionPayload | null) =>
-    fetch(`${API_URL}/api/auth/exchange`, {
+    fetch(apiUrl('/api/auth/exchange'), {
       method: 'POST',
       headers: getHeaders(token),
       body: JSON.stringify({ token, attribution: attribution || undefined }),
@@ -216,7 +243,7 @@ export const authApi = {
     }),
 
   identities: (token: string) =>
-    fetch(`${API_URL}/api/auth/identities`, {
+    fetch(apiUrl('/api/auth/identities'), {
       method: 'GET',
       headers: getHeaders(token),
     }).then(async (res) => {
@@ -244,7 +271,7 @@ export const authApi = {
     }),
 
   link: (token: string, currentToken: string) =>
-    fetch(`${API_URL}/api/auth/link`, {
+    fetch(apiUrl('/api/auth/link'), {
       method: 'POST',
       headers: getHeaders(currentToken),
       body: JSON.stringify({ token }),
@@ -260,7 +287,7 @@ export const authApi = {
     }),
 
   phoneSend: (phone: string) =>
-    fetch(`${API_URL}/api/auth/phone/send`, {
+    fetch(apiUrl('/api/auth/phone/send'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
@@ -273,7 +300,7 @@ export const authApi = {
     }),
 
   phoneVerify: (phone: string, otp: string, attribution?: AttributionPayload | null) =>
-    fetch(`${API_URL}/api/auth/phone/verify`, {
+    fetch(apiUrl('/api/auth/phone/verify'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp, attribution: attribution || undefined }),

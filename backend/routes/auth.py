@@ -10,6 +10,7 @@ import json
 import hmac
 import base64
 import datetime
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -187,6 +188,17 @@ def _send_sms_code(phone: str, otp: str) -> None:
     try:
         with urllib.request.urlopen(url, timeout=10) as resp:
             body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        # 403/400 时响应体里常有 SignatureDoesNotMatch、权限说明等，便于排查
+        try:
+            err_body = exc.read().decode("utf-8")
+        except Exception:
+            err_body = ""
+        snippet = (err_body or str(exc.reason))[:800]
+        raise HTTPException(
+            status_code=503,
+            detail=f"Aliyun SMS HTTP {exc.code}: {snippet}",
+        ) from exc
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Aliyun SMS request failed: {exc}") from exc
 
