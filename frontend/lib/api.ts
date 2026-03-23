@@ -5,6 +5,7 @@
 const DEFAULT_API_URL =
   process.env.NODE_ENV === 'production' ? 'https://www.mentat.hk' : 'http://localhost:8000'
 const API_URL_CONFIGURED = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
+export const API_URL = API_URL_CONFIGURED
 
 function resolveApiUrlBase(): string {
   // SSR 仍使用配置地址，避免 Node 环境相对地址 fetch 报错
