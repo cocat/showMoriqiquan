@@ -1,13 +1,10 @@
-import dynamic from 'next/dynamic'
-
-export const dynamic = 'force-dynamic'
-
-const ClerkSignInClient = dynamic(() => import('./sign-in-client'), {
-  ssr: false,
-})
+import { redirect } from 'next/navigation'
+import ClerkSignInClient from './sign-in-client'
 
 export default function ClerkSignInPage() {
-  return (
-    <ClerkSignInClient />
-  )
+  if (process.env.NEXT_PUBLIC_SKIP_CLERK === 'true') {
+    redirect('/sign-in')
+  }
+
+  return <ClerkSignInClient />
 }
