@@ -38,6 +38,7 @@ function NavLink({
 }
 
 export default function Navbar() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const pathname = usePathname()
   const { isSignedIn, clearSession } = useAppAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -142,14 +143,23 @@ export default function Navbar() {
                   手机号登录
                 </Link>
                 */}
-                <SignInButton mode="modal">
-                  <button
-                    type="button"
+                {skipClerk ? (
+                  <Link
+                    href="/sign-in?redirect_url=/dashboard"
                     className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors"
                   >
                     登录
-                  </button>
-                </SignInButton>
+                  </Link>
+                ) : (
+                  <SignInButton mode="modal">
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors"
+                    >
+                      登录
+                    </button>
+                  </SignInButton>
+                )}
                 <Link
                   href="/reports/latest"
                   className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors"
@@ -240,15 +250,25 @@ export default function Navbar() {
                   手机号登录
                 </Link>
                 */}
-                <SignInButton mode="modal">
-                  <button
-                    type="button"
+                {skipClerk ? (
+                  <Link
+                    href="/sign-in?redirect_url=/dashboard"
                     onClick={() => setMobileOpen(false)}
                     className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
                   >
                     登录
-                  </button>
-                </SignInButton>
+                  </Link>
+                ) : (
+                  <SignInButton mode="modal">
+                    <button
+                      type="button"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
+                    >
+                      登录
+                    </button>
+                  </SignInButton>
+                )}
                 <Link
                   href="/reports/latest"
                   className="flex-1 text-center px-3 py-2 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors"

@@ -4,34 +4,55 @@ import Link from 'next/link'
 import { SignInButton } from '@clerk/nextjs'
 
 export function NavAuthButtons() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   return (
     <div className="flex items-center gap-2">
-      <SignInButton mode="modal">
-        <button type="button" className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors">
+      {skipClerk ? (
+        <Link href="/sign-in?redirect_url=/dashboard" className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors">
           登录后开始使用
-        </button>
-      </SignInButton>
+        </Link>
+      ) : (
+        <SignInButton mode="modal">
+          <button type="button" className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors">
+            登录后开始使用
+          </button>
+        </SignInButton>
+      )}
     </div>
   )
 }
 
 export function HeroAuthButtons() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   return (
-    <SignInButton mode="modal">
-      <button type="button" className="px-8 py-3 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition font-medium">
+    skipClerk ? (
+      <Link href="/sign-in?redirect_url=/dashboard" className="px-8 py-3 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition font-medium">
         登录后开始使用
-      </button>
-    </SignInButton>
+      </Link>
+    ) : (
+      <SignInButton mode="modal">
+        <button type="button" className="px-8 py-3 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition font-medium">
+          登录后开始使用
+        </button>
+      </SignInButton>
+    )
   )
 }
 
 export function ObserverCardButton() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   return (
-    <SignInButton mode="modal">
-      <button type="button" className="block w-full mt-4 px-4 py-2 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition text-center">
+    skipClerk ? (
+      <Link href="/sign-in?redirect_url=/reports/latest" className="block w-full mt-4 px-4 py-2 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition text-center">
         登录后查看报告
-      </button>
-    </SignInButton>
+      </Link>
+    ) : (
+      <SignInButton mode="modal">
+        <button type="button" className="block w-full mt-4 px-4 py-2 bg-gold text-mentat-bg rounded hover:bg-gold-hover transition text-center">
+          登录后查看报告
+        </button>
+      </SignInButton>
+    )
   )
 }
 

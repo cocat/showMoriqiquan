@@ -45,6 +45,7 @@ const levelLabel = (level?: string) => {
 }
 
 function EmptyStateSubscriptionFirst() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const { isSignedIn } = useAppAuth()
   return (
     <div className="relative rounded-[28px] overflow-hidden bg-gradient-to-br from-mentat-bg-elevated via-mentat-bg-card to-black p-8 sm:p-10 text-center shadow-[0_24px_70px_-26px_rgba(0,0,0,0.9)]">
@@ -65,6 +66,14 @@ function EmptyStateSubscriptionFirst() {
         >
           <Mail className="w-4 h-4" />
           浏览历史报告
+        </Link>
+      ) : skipClerk ? (
+        <Link
+          href="/sign-in?redirect_url=/reports/latest"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+        >
+          <Mail className="w-4 h-4" />
+          登录后查看
         </Link>
       ) : (
         <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
@@ -108,6 +117,7 @@ function StatPill({
 }
 
 export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestReportCardProps) {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const { getToken, isSignedIn } = useAppAuth()
   const [data, setData] = useState<Summary | null>(dataProp ?? null)
   const [loading, setLoading] = useState(dataProp === undefined)
@@ -325,6 +335,14 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
             >
               <Bell className="w-4 h-4" />
               进入最新报告
+            </Link>
+          ) : skipClerk ? (
+            <Link
+              href="/sign-in?redirect_url=/reports/latest"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gold text-mentat-bg-page text-sm font-semibold hover:bg-gold-hover transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              登录后查看完整
             </Link>
           ) : (
             <SignInButton mode="modal" forceRedirectUrl="/reports/latest">

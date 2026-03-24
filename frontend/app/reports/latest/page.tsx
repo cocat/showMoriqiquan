@@ -95,6 +95,7 @@ const levelLabel = (level?: string) => {
 }
 
 export default function LatestReportPage() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const { getToken, isSignedIn } = useAppAuth()
   const [loading, setLoading] = useState(true)
   const [latest, setLatest] = useState<LatestSummary | null>(null)
@@ -385,15 +386,25 @@ export default function LatestReportPage() {
                     <p className="text-xs text-mentat-text-secondary mt-1">
                       当前按角色展示内容，登录后会自动按你的权限加载可查看的完整信息。
                     </p>
-                    <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
-                      <button
-                        type="button"
+                    {skipClerk ? (
+                      <Link
+                        href="/sign-in?redirect_url=/reports/latest"
                         className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
                       >
                         去登录
                         <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </SignInButton>
+                      </Link>
+                    ) : (
+                      <SignInButton mode="modal" forceRedirectUrl="/reports/latest">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                        >
+                          去登录
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </SignInButton>
+                    )}
                   </div>
                 </div>
               </div>
@@ -409,6 +420,14 @@ export default function LatestReportPage() {
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
                 >
                   浏览历史报告
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : skipClerk ? (
+                <Link
+                  href="/sign-in?redirect_url=/reports/latest"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                >
+                  登录后继续查看
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               ) : (

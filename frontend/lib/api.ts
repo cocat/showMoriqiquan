@@ -210,10 +210,26 @@ export const paymentsApi = {
 export const usersApi = {
   stats: (token?: string | null) =>
     cachedFetch(`users:stats:${token ?? ''}`, async () => {
+      if (!token) {
+        return {
+          tier: 'guest',
+          daily_query_count: 0,
+          is_active: true,
+        }
+      }
       const res = await fetch(apiUrl('/api/users/me'), {
         headers: getHeaders(token),
       })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          return {
+            tier: 'observer',
+            daily_query_count: 0,
+            is_active: true,
+          }
+        }
+        throw new Error(`API error: ${res.status}`)
+      }
       return res.json()
     }),
 }
@@ -313,6 +329,57 @@ export const authApi = {
       return res.json() as Promise<{
         ok: boolean
         app_token: string | null
+        is_new_user?: boolean
+        user: {
+          user_id: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          tier: string
+          subscription_end?: string | null
+        }
+      }>
+    }),
+
+  passwordRegister: (phone: string, otp: string, password: string, attribution?: AttributionPayload | null) =>
+    fetch(apiUrl('/api/auth/password/register'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp, password, attribution: attribution || undefined }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        ok: boolean
+        app_token: string | null
+        is_new_user?: boolean
+        user: {
+          user_id: string
+          email?: string | null
+          phone?: string | null
+          display_name?: string | null
+          tier: string
+          subscription_end?: string | null
+        }
+      }>
+    }),
+
+  passwordLogin: (phone: string, password: string, attribution?: AttributionPayload | null) =>
+    fetch(apiUrl('/api/auth/password/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password, attribution: attribution || undefined }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
+      }
+      return res.json() as Promise<{
+        ok: boolean
+        app_token: string | null
+        is_new_user?: boolean
         user: {
           user_id: string
           email?: string | null

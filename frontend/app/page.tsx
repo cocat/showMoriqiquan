@@ -120,6 +120,7 @@ const loginHighlights = [
 ]
 
 export default function HomePage() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const { getToken, authProvider, isSignedIn } = useAppAuth()
   const [latest, setLatest] = useState<LatestSummary | null>(null)
   const [overviewExcerpt, setOverviewExcerpt] = useState<string>('')
@@ -508,6 +509,14 @@ export default function HomePage() {
                   查看今日报告
                   <ArrowRight className="w-4 h-4" />
                 </Link>
+              ) : skipClerk ? (
+                <Link
+                  href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                >
+                  登录后查看今日报告
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               ) : (
                 <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
                   <button
@@ -541,15 +550,25 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
-                <button
-                  type="button"
+              {skipClerk ? (
+                <Link
+                  href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
                   className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
                 >
                   立即登录查看
                   <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </SignInButton>
+                </Link>
+              ) : (
+                <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
+                  >
+                    立即登录查看
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </SignInButton>
+              )}
             </div>
           </div>
         </section>
@@ -632,6 +651,13 @@ export default function HomePage() {
                     className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
                   >
                     查看今日报告
+                  </Link>
+                ) : skipClerk ? (
+                  <Link
+                    href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
+                    className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+                  >
+                    去登录查看
                   </Link>
                 ) : (
                   <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>

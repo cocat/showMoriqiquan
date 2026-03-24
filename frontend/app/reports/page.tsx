@@ -392,6 +392,7 @@ function ListView({
   onLoadMore: () => void
   isSignedIn: boolean
 }) {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const grouped = reports.reduce<Record<string, ReportItem[]>>((acc, r) => {
     const month = r.report_date.slice(0, 7)
     if (!acc[month]) acc[month] = []
@@ -408,15 +409,25 @@ function ListView({
           请先登录后查看历史报告
         </div>
         <div className="mt-4">
-          <SignInButton mode="modal" forceRedirectUrl="/reports">
-            <button
-              type="button"
+          {skipClerk ? (
+            <Link
+              href="/sign-in?redirect_url=/reports"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors"
             >
               去登录
               <ArrowRight className="w-4 h-4" />
-            </button>
-          </SignInButton>
+            </Link>
+          ) : (
+            <SignInButton mode="modal" forceRedirectUrl="/reports">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors"
+              >
+                去登录
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </SignInButton>
+          )}
         </div>
       </div>
     )

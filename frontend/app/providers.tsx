@@ -48,6 +48,55 @@ export function useAppAuth(): AppAuthValue {
   return useContext(AppAuthContext)
 }
 
+function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
+  const [appToken, setAppToken] = useState<string | null>(null)
+  const [appUser, setAppUser] = useState<AppUser>(null)
+
+  useEffect(() => {
+    captureAttributionIfPresent()
+    try {
+      const savedToken = localStorage.getItem(APP_TOKEN_STORAGE_KEY)
+      if (savedToken) setAppToken(savedToken)
+      const rawUser = localStorage.getItem(APP_USER_STORAGE_KEY)
+      if (rawUser) setAppUser(JSON.parse(rawUser) as AppUser)
+    } catch {
+      // ignore localStorage failures
+    }
+  }, [])
+
+  const persistAppSession = useCallback((token: string | null, nextUser: AppUser) => {
+    setAppToken(token)
+    setAppUser(nextUser)
+    try {
+      if (token) {
+        localStorage.setItem(APP_TOKEN_STORAGE_KEY, token)
+        localStorage.setItem(APP_USER_STORAGE_KEY, JSON.stringify(nextUser))
+      } else {
+        localStorage.removeItem(APP_TOKEN_STORAGE_KEY)
+        localStorage.removeItem(APP_USER_STORAGE_KEY)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const value: AppAuthValue = {
+    isLoaded: true,
+    isSignedIn: !!appToken,
+    authProvider: appToken ? 'phone' : 'none',
+    getToken: async () => appToken,
+    clearSession: async () => persistAppSession(null, null),
+    signInWithAppToken: async (token: string, user: AppUser) => {
+      persistAppSession(token, user)
+    },
+    exchangeExternalToken: async () => undefined,
+    startCnLogin: () => undefined,
+    user: appUser,
+  }
+
+  return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
+}
+
 function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const auth = useAuth()
   const { user } = useUser()
@@ -165,8 +214,19 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  const proxyUrl = process.env.NEXT_PUBLIC_CLERK_PROXY_URL
+
+  if (skipClerk) {
+    return <AppTokenOnlyBridge>{children}</AppTokenOnlyBridge>
+  }
+
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      proxyUrl={proxyUrl || undefined}
+    >
       <ClerkAuthBridge>{children}</ClerkAuthBridge>
     </ClerkProvider>
   )
