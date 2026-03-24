@@ -9,6 +9,7 @@ import hashlib
 import json
 import hmac
 import base64
+import secrets
 import datetime
 import urllib.error
 import urllib.parse
@@ -42,6 +43,10 @@ PHONE_OTP_SEND_COOLDOWN_SECONDS = int(
 )
 PHONE_OTP_DEBUG = os.getenv("PHONE_OTP_DEBUG", "true").strip().lower() == "true"
 PHONE_OTP_HASH_SALT = os.getenv("PHONE_OTP_HASH_SALT", "phone_otp_salt").strip()
+PASSWORD_SCRYPT_N = int(os.getenv("PASSWORD_SCRYPT_N", str(2**14)))
+PASSWORD_SCRYPT_R = int(os.getenv("PASSWORD_SCRYPT_R", "8"))
+PASSWORD_SCRYPT_P = int(os.getenv("PASSWORD_SCRYPT_P", "1"))
+PASSWORD_MIN_LENGTH = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
 
 
 class AuthExchangeRequest(BaseModel):
@@ -107,6 +112,56 @@ def _otp_rate_key(phone: str) -> str:
 def _hash_otp(otp: str) -> str:
     raw = f"{PHONE_OTP_HASH_SALT}:{otp}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _validate_password(raw: str) -> str:
+    password = (raw or "").strip()
+    if len(password) < PASSWORD_MIN_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"password must be at least {PASSWORD_MIN_LENGTH} chars",
+        )
+    if len(password) > 128:
+        raise HTTPException(status_code=400, detail="password too long")
+    return password
+
+
+def _hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.scrypt(
+        password.encode("utf-8"),
+        salt=salt,
+        n=PASSWORD_SCRYPT_N,
+        r=PASSWORD_SCRYPT_R,
+        p=PASSWORD_SCRYPT_P,
+        dklen=32,
+    )
+    return (
+        "scrypt$"
+        f"{PASSWORD_SCRYPT_N}${PASSWORD_SCRYPT_R}${PASSWORD_SCRYPT_P}$"
+        f"{base64.urlsafe_b64encode(salt).decode('utf-8')}$"
+        f"{base64.urlsafe_b64encode(dk).decode('utf-8')}"
+    )
+
+
+def _verify_password(password: str, encoded: str) -> bool:
+    try:
+        algo, n_raw, r_raw, p_raw, salt_b64, hash_b64 = encoded.split("$", 5)
+        if algo != "scrypt":
+            return False
+        salt = base64.urlsafe_b64decode(salt_b64.encode("utf-8"))
+        target = base64.urlsafe_b64decode(hash_b64.encode("utf-8"))
+        derived = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=salt,
+            n=int(n_raw),
+            r=int(r_raw),
+            p=int(p_raw),
+            dklen=len(target),
+        )
+        return secrets.compare_digest(derived, target)
+    except Exception:
+        return False
 
 
 def _send_sms_code(phone: str, otp: str) -> None:
@@ -398,6 +453,7 @@ class PhoneVerifyResponse(BaseModel):
     ok: bool
     app_token: Optional[str] = None
     user: Optional[dict] = None
+    is_new_user: bool = False
 
 
 @router.post("/phone/verify", response_model=PhoneVerifyResponse)
@@ -435,6 +491,7 @@ async def phone_verify_otp(
     if not user:
         user = db.query(User).filter(User.phone == phone).first()
 
+    is_new_user = False
     if not user:
         from datetime import datetime, timedelta
 
@@ -449,6 +506,7 @@ async def phone_verify_otp(
         db.add(user)
         db.commit()
         db.refresh(user)
+        is_new_user = True
 
     if not identity:
         try:
@@ -479,4 +537,172 @@ async def phone_verify_otp(
         payload=body.attribution,
     )
 
-    return PhoneVerifyResponse(ok=True, app_token=app_token, user=_serialize_user(user))
+    return PhoneVerifyResponse(
+        ok=True,
+        app_token=app_token,
+        user=_serialize_user(user),
+        is_new_user=is_new_user,
+    )
+
+
+class PhonePasswordRegisterRequest(BaseModel):
+    phone: str
+    otp: str
+    password: str
+    attribution: Optional[dict] = None
+
+
+class PhonePasswordLoginRequest(BaseModel):
+    phone: str
+    password: str
+    attribution: Optional[dict] = None
+
+
+class PhonePasswordResetRequest(BaseModel):
+    phone: str
+    otp: str
+    new_password: str
+
+
+@router.post("/password/register", response_model=PhoneVerifyResponse)
+async def phone_password_register(
+    request: Request,
+    body: PhonePasswordRegisterRequest,
+    db: Session = Depends(get_db),
+):
+    phone = _normalize_phone(body.phone)
+    otp = (body.otp or "").strip()
+    password = _validate_password(body.password)
+    if not re.match(r"^\d{6}$", otp):
+        raise HTTPException(status_code=400, detail="otp must be 6 digits")
+
+    record = cache_client.get_json(_otp_cache_key(phone))
+    if not record or not record.get("hash"):
+        raise HTTPException(status_code=401, detail="otp expired or not found")
+    if record["hash"] != _hash_otp(otp):
+        raise HTTPException(status_code=401, detail="invalid otp")
+
+    user = db.query(User).filter(User.phone == phone).first()
+    is_new_user = False
+    if not user:
+        now = datetime.datetime.utcnow()
+        user = User(
+            user_id=_stable_phone_user_id(phone),
+            tier=UserTier.OBSERVER,
+            phone=phone,
+            subscription_start=now,
+            subscription_end=now + datetime.timedelta(days=7),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        is_new_user = True
+
+    user.password_hash = _hash_password(password)
+    user.password_updated_at = datetime.datetime.utcnow()
+
+    identity = db.query(IdentityAccount).filter(
+        IdentityAccount.provider == "phone",
+        IdentityAccount.provider_user_id == phone,
+    ).first()
+    if not identity:
+        db.add(
+            IdentityAccount(
+                user_id=user.user_id,
+                provider="phone",
+                provider_user_id=phone,
+                phone=phone,
+            )
+        )
+    db.commit()
+    db.refresh(user)
+
+    app_token = issue_app_access_token(user.user_id, provider="phone")
+    if not app_token:
+        raise HTTPException(status_code=503, detail="APP_AUTH_SECRET is not configured")
+
+    cache_client.set_json(_otp_cache_key(phone), {"hash": ""}, 1)
+    record_user_attribution_event(
+        db,
+        user_id=user.user_id,
+        event_type="password_register",
+        request=request,
+        payload=body.attribution,
+    )
+    return PhoneVerifyResponse(
+        ok=True,
+        app_token=app_token,
+        user=_serialize_user(user),
+        is_new_user=is_new_user,
+    )
+
+
+@router.post("/password/login", response_model=PhoneVerifyResponse)
+async def phone_password_login(
+    request: Request,
+    body: PhonePasswordLoginRequest,
+    db: Session = Depends(get_db),
+):
+    phone = _normalize_phone(body.phone)
+    password = _validate_password(body.password)
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user or not user.password_hash:
+        raise HTTPException(status_code=401, detail="phone or password invalid")
+
+    if not _verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="phone or password invalid")
+
+    app_token = issue_app_access_token(user.user_id, provider="phone")
+    if not app_token:
+        raise HTTPException(status_code=503, detail="APP_AUTH_SECRET is not configured")
+    record_user_attribution_event(
+        db,
+        user_id=user.user_id,
+        event_type="password_login",
+        request=request,
+        payload=body.attribution,
+    )
+    return PhoneVerifyResponse(
+        ok=True,
+        app_token=app_token,
+        user=_serialize_user(user),
+        is_new_user=False,
+    )
+
+
+@router.post("/password/reset", response_model=PhoneVerifyResponse)
+async def phone_password_reset(
+    body: PhonePasswordResetRequest,
+    db: Session = Depends(get_db),
+):
+    phone = _normalize_phone(body.phone)
+    otp = (body.otp or "").strip()
+    new_password = _validate_password(body.new_password)
+    if not re.match(r"^\d{6}$", otp):
+        raise HTTPException(status_code=400, detail="otp must be 6 digits")
+
+    record = cache_client.get_json(_otp_cache_key(phone))
+    if not record or not record.get("hash"):
+        raise HTTPException(status_code=401, detail="otp expired or not found")
+    if record["hash"] != _hash_otp(otp):
+        raise HTTPException(status_code=401, detail="invalid otp")
+
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    user.password_hash = _hash_password(new_password)
+    user.password_updated_at = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    cache_client.set_json(_otp_cache_key(phone), {"hash": ""}, 1)
+
+    app_token = issue_app_access_token(user.user_id, provider="phone")
+    if not app_token:
+        raise HTTPException(status_code=503, detail="APP_AUTH_SECRET is not configured")
+    return PhoneVerifyResponse(
+        ok=True,
+        app_token=app_token,
+        user=_serialize_user(user),
+        is_new_user=False,
+    )

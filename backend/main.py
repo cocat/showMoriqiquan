@@ -7,8 +7,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 _backend_dir = Path(__file__).resolve().parent
-load_dotenv(_backend_dir.parent / ".env")   # 项目根 .env
-load_dotenv(_backend_dir / ".env")          # backend/.env 可覆盖
+load_dotenv(_backend_dir.parent / ".env", override=True)   # 项目根 .env
+load_dotenv(_backend_dir / ".env", override=True)          # backend/.env 可覆盖
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +18,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from routes import reports, health, users, payments, auth
-from database import ensure_performance_indexes, engine
+from database import ensure_performance_indexes, ensure_auth_columns, engine
 from attribution import ensure_attribution_tables
 
 app = FastAPI(
@@ -96,6 +96,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 @app.on_event("startup")
 async def startup_tasks():
     ensure_performance_indexes()
+    ensure_auth_columns()
     ensure_attribution_tables(engine)
 
 

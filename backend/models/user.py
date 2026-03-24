@@ -3,7 +3,14 @@
 """
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Integer, Boolean, Enum as SQLEnum
+from sqlalchemy import (
+    Column,
+    String,
+    DateTime,
+    Integer,
+    Boolean,
+    Enum as SQLEnum,
+)
 from database import Base
 
 
@@ -22,6 +29,8 @@ class User(Base):
     clerk_user_id = Column(String(128), unique=True, nullable=True, index=True)
     email = Column(String(255), nullable=True, index=True)
     phone = Column(String(32), nullable=True)
+    password_hash = Column(String(255), nullable=True)
+    password_updated_at = Column(DateTime, nullable=True)
     display_name = Column(String(128), nullable=True)
     avatar_url = Column(String(512), nullable=True)
     subscription_start = Column(DateTime, nullable=True)
@@ -31,4 +40,9 @@ class User(Base):
     daily_query_reset_at = Column(DateTime, nullable=True)
     last_access_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )

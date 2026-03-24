@@ -4,7 +4,7 @@
 import os
 import re
 import logging
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -89,3 +89,33 @@ def ensure_performance_indexes() -> None:
     except Exception as exc:
         # 索引创建失败不阻塞服务启动，但记录日志便于排查
         logger.warning("Failed to ensure performance indexes: %s", exc)
+
+
+def ensure_auth_columns() -> None:
+    """
+    启动时确保 users 表含账号密码登录所需列。
+    """
+    try:
+        inspector = inspect(engine)
+        if not inspector.has_table("users"):
+            return
+
+        cols = {col["name"] for col in inspector.get_columns("users")}
+        alter_sql = []
+        if "password_hash" not in cols:
+            alter_sql.append(
+                "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"
+            )
+        if "password_updated_at" not in cols:
+            alter_sql.append(
+                "ALTER TABLE users ADD COLUMN password_updated_at TIMESTAMP"
+            )
+
+        if not alter_sql:
+            return
+        with engine.begin() as conn:
+            for sql in alter_sql:
+                conn.execute(text(sql))
+        logger.info("Auth columns ensured")
+    except Exception as exc:
+        logger.warning("Failed to ensure auth columns: %s", exc)
