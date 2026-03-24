@@ -1,14 +1,13 @@
-'use client'
+import dynamic from 'next/dynamic'
 
-import { SignIn } from '@clerk/nextjs'
+export const dynamic = 'force-dynamic'
+
+const ClerkSignInClient = dynamic(() => import('./sign-in-client'), {
+  ssr: false,
+})
 
 export default function ClerkSignInPage() {
   return (
-    <div className="min-h-[60vh] flex items-center justify-center py-12">
-      <SignIn
-        fallbackRedirectUrl="/dashboard"
-        signUpUrl="/sign-up"
-      />
-    </div>
+    <ClerkSignInClient />
   )
 }
