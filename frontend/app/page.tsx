@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
 import { InsightCard, SectionHeader } from './components/HomePrimitives'
 import {
   ArrowRight,
@@ -131,29 +132,26 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getToken().then((token) => {
-      if (cancelled) return
-      reportsApi
-        .latestSummaryBundle(token)
+    withTokenRetry(getToken, (token) => reportsApi.latestSummaryBundle(token))
+      .then((d) => {
+        if (cancelled) return
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .then((d: any) => {
-          if (cancelled) return
-          const report = d?.report
-          const parsed = report && typeof report === 'object' && report.report_date != null ? report : null
-          setLatest(parsed)
-          setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setLatest(null)
-            setOverviewExcerpt('')
-            setAlerts([])
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false)
-        })
-    })
+        const anyD = d as any
+        const report = anyD?.report
+        const parsed = report && typeof report === 'object' && report.report_date != null ? report : null
+        setLatest(parsed)
+        setOverviewExcerpt(typeof anyD?.overview_teaser === 'string' ? anyD.overview_teaser : '')
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLatest(null)
+          setOverviewExcerpt('')
+          setAlerts([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => { cancelled = true }
   }, [getToken, authProvider])
 
@@ -166,8 +164,7 @@ export default function HomePage() {
     alertsFetchedDateRef.current = reportDate
 
     let cancelled = false
-    getToken()
-      .then((token) => reportsApi.getByDate(reportDate, token))
+    withTokenRetry(getToken, (token) => reportsApi.getByDate(reportDate, token))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((detail: any) => {
         if (cancelled) return

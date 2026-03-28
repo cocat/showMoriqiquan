@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi, isNetworkError, API_URL } from '@/lib/api'
+import { isAuthApiError, withTokenRetry } from '@/lib/session-token'
 import {
   format,
   startOfMonth,
@@ -85,11 +86,6 @@ function excerpt(text: string | null | undefined, maxLen: number): string {
   const t = text.trim()
   if (t.length <= maxLen) return t
   return t.slice(0, maxLen).trim() + '…'
-}
-
-function isAuthApiError(error: unknown): boolean {
-  const message = (error as { message?: string })?.message || ''
-  return /API error:\s*(401|403)/.test(message)
 }
 
 /* ── 信息密度高的报告卡片（含预览内容）────────────────────────── */
@@ -549,13 +545,36 @@ export default function ReportsPage() {
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [calendarMessage, setCalendarMessage] = useState('')
   const listRetryAfterSignInRef = useRef(false)
+  const hadSessionRef = useRef(false)
+
+  // 从已登录变为未登录时清空内存态，避免登出后仍短暂显示上一份会话的历史列表/日历
+  useEffect(() => {
+    if (!isLoaded) return
+    if (isSignedIn) {
+      hadSessionRef.current = true
+      return
+    }
+    if (!hadSessionRef.current) return
+    hadSessionRef.current = false
+    setReports([])
+    setDetails({})
+    setListLoaded(false)
+    setListUnauthorized(false)
+    setListError(false)
+    setListPage(1)
+    setListHasMore(false)
+    setCalendarCache({})
+    setCalendarMessage('')
+    listRetryAfterSignInRef.current = false
+  }, [isLoaded, isSignedIn])
 
   const loadReports = useCallback(async (p: number): Promise<ReportItem[]> => {
     setListLoading(true)
     try {
       setListUnauthorized(false)
-      const token = await getToken()
-      const data = await reportsApi.list(p, PAGE_SIZE, token, 'archive')
+      const data = await withTokenRetry(getToken, (token) =>
+        reportsApi.list(p, PAGE_SIZE, token, 'archive'),
+      )
       const items: ReportItem[] =
         data.reports ?? data.items ?? data.data ?? (Array.isArray(data) ? data : [])
       setReports((prev) => (p === 1 ? items : [...prev, ...items]))
@@ -581,29 +600,44 @@ export default function ReportsPage() {
 
   const loadDetails = useCallback(async (toFetch: ReportItem[]) => {
     if (toFetch.length === 0) return
-    const token = await getToken()
-    const results = await Promise.allSettled(
-      toFetch.map((r) =>
-        reportsApi.getByDate(r.report_date, token).then((res) => ({
-          date: r.report_date,
-          res: res as { report?: ReportItem; overview?: { content: string }; alerts?: ReportDetail['alerts']; topic_comparisons?: ReportDetail['topic_comparisons'] },
-        }))
-      )
-    )
-    const next: Record<string, ReportDetail> = {}
-    results.forEach((r) => {
-      if (r.status === 'fulfilled' && r.value) {
-        const { date, res: d } = r.value
-        const base = toFetch.find((x) => x.report_date === date)!
-        next[date] = {
-          report: { ...base, ...d.report },
-          overview: d.overview,
-          alerts: d.alerts,
-          topic_comparisons: d.topic_comparisons,
-        }
-        }
+    try {
+      await withTokenRetry(getToken, async (authToken) => {
+        const results = await Promise.allSettled(
+          toFetch.map((r) =>
+            reportsApi.getByDate(r.report_date, authToken).then((res) => ({
+              date: r.report_date,
+              res: res as {
+                report?: ReportItem
+                overview?: { content: string }
+                alerts?: ReportDetail['alerts']
+                topic_comparisons?: ReportDetail['topic_comparisons']
+              },
+            })),
+          ),
+        )
+        const authRejected = results.some(
+          (r): r is PromiseRejectedResult =>
+            r.status === 'rejected' && isAuthApiError(r.reason),
+        )
+        if (authRejected) throw new Error('API error: 401')
+        const next: Record<string, ReportDetail> = {}
+        results.forEach((r) => {
+          if (r.status === 'fulfilled' && r.value) {
+            const { date, res: d } = r.value
+            const base = toFetch.find((x) => x.report_date === date)!
+            next[date] = {
+              report: { ...base, ...d.report },
+              overview: d.overview,
+              alerts: d.alerts,
+              topic_comparisons: d.topic_comparisons,
+            }
+          }
+        })
+        setDetails((prev) => ({ ...prev, ...next }))
       })
-    setDetails((prev) => ({ ...prev, ...next }))
+    } catch {
+      // 列表已加载时仅预览条失败，不阻断整页
+    }
   }, [getToken])
 
   // 等 Clerk 加载完成再请求，避免首屏 getToken 仍为 null → 401 → listLoaded 锁死、登录后也无法重试
@@ -646,8 +680,9 @@ export default function ReportsPage() {
     setCalendarLoading(true)
     setCalendarMessage('')
     try {
-      const token = await getToken()
-      const data = await reportsApi.getCalendar(date.getFullYear(), date.getMonth() + 1, token)
+      const data = await withTokenRetry(getToken, (token) =>
+        reportsApi.getCalendar(date.getFullYear(), date.getMonth() + 1, token),
+      )
       setCalendarCache((prev) => ({ ...prev, [key]: data }))
     } catch (error: unknown) {
       if (isNetworkError(error)) {

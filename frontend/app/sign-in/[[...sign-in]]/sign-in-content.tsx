@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
+import { formatApiErrorForUser } from '@/lib/api-error-ui'
 import { useAppAuth } from '@/app/providers'
 import { captureAttributionIfPresent, getAttributionPayload } from '@/lib/attribution'
 
@@ -49,8 +49,8 @@ export function SignInContent() {
       const res = await authApi.phoneSend(phone)
       if (res?.debug_otp) setDebugOtp(res.debug_otp)
       setCooldownSeconds(60)
-    } catch (e: any) {
-      setError(e?.message || '发送验证码失败')
+    } catch (e: unknown) {
+      setError(formatApiErrorForUser(e, '发送验证码失败'))
     } finally {
       setSending(false)
     }
@@ -71,8 +71,8 @@ export function SignInContent() {
     try {
       const res = await authApi.phoneVerify(phone, otp, getAttributionPayload())
       await completeSignIn(res.app_token, res.user?.phone)
-    } catch (e: any) {
-      setError(e?.message || '验证码校验失败')
+    } catch (e: unknown) {
+      setError(formatApiErrorForUser(e, '验证码校验失败'))
     } finally {
       setSubmitting(false)
     }
@@ -84,8 +84,8 @@ export function SignInContent() {
     try {
       const res = await authApi.passwordLogin(phone, password, getAttributionPayload())
       await completeSignIn(res.app_token, res.user?.phone)
-    } catch (e: any) {
-      setError(e?.message || '账号或密码错误')
+    } catch (e: unknown) {
+      setError(formatApiErrorForUser(e, '账号或密码错误'))
     } finally {
       setSubmitting(false)
     }

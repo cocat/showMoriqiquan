@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
 import { ArrowRight, Bell, Mail, Sparkles, FileText, AlertTriangle, Layers, Radio } from 'lucide-react'
 
 interface Summary {
@@ -131,14 +132,10 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
     }
     let cancelled = false
     setLoading(true)
-    getToken().then((token) => {
-      if (cancelled) return
-      reportsApi
-        .latestSummary(token)
-        .then((d) => { if (!cancelled) setData(d) })
-        .catch(() => { if (!cancelled) setError(true) })
-        .finally(() => { if (!cancelled) setLoading(false) })
-    })
+    withTokenRetry(getToken, (token) => reportsApi.latestSummary(token))
+      .then((d) => { if (!cancelled) setData(d) })
+      .catch(() => { if (!cancelled) setError(true) })
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [dataProp, getToken])
 

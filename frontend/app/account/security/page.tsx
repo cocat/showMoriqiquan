@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { authApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
+import { formatApiErrorForUser } from '@/lib/api-error-ui'
 
 type IdentityRow = {
   provider: string
@@ -32,16 +34,15 @@ export default function AccountSecurityPage() {
       setLoading(false)
       return
     }
-    getToken()
-      .then((token) => {
-        if (!token) throw new Error('登录状态无效，请重新登录。')
-        return authApi.identities(token)
-      })
+    withTokenRetry(getToken, (token) => {
+      if (!token) throw new Error('登录状态无效，请重新登录。')
+      return authApi.identities(token)
+    })
       .then((res) => {
         setRows(res.identities || [])
       })
       .catch((err: unknown) => {
-        setError((err as Error)?.message || '加载账号绑定信息失败。')
+        setError(formatApiErrorForUser(err, '加载账号绑定信息失败。'))
       })
       .finally(() => {
         setLoading(false)

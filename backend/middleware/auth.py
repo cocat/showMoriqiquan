@@ -22,7 +22,8 @@ from models.user import User, UserTier
 
 security = HTTPBearer(auto_error=False)
 
-SKIP_CLERK = os.getenv("SKIP_CLERK", "true").strip().lower() == "true"
+# 默认 false：未设置环境变量时按真实鉴权处理，避免线上漏配导致「未登录却等同管理员」
+SKIP_CLERK = os.getenv("SKIP_CLERK", "false").strip().lower() == "true"
 
 CLERK_ISSUER = os.getenv("CLERK_ISSUER", "").rstrip("/")
 CLERK_JWKS_URL = os.getenv(

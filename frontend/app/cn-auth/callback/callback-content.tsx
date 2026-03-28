@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
 import { authApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
+import { formatApiErrorForUser } from '@/lib/api-error-ui'
 import { captureAttributionIfPresent } from '@/lib/attribution'
 
 export function CallbackContent() {
@@ -28,20 +30,18 @@ export function CallbackContent() {
 
     if (intent === 'link') {
       setMessage('正在绑定身份...')
-      getToken()
-        .then((currentToken) => {
-          if (!currentToken) {
-            throw new Error('请先登录已有账号，再执行绑定。')
-          }
-          return authApi.link(token, currentToken)
-        })
+      withTokenRetry(getToken, (currentToken) => {
+        if (!currentToken) {
+          throw new Error('请先登录已有账号，再执行绑定。')
+        }
+        return authApi.link(token, currentToken)
+      })
         .then(() => {
           router.replace(returnUrl)
         })
         .catch((err: unknown) => {
-          const text = (err as Error)?.message || '绑定失败，请稍后重试。'
           setStatus('error')
-          setMessage(text)
+          setMessage(formatApiErrorForUser(err, '绑定失败，请稍后重试。'))
         })
       return
     }
@@ -51,9 +51,8 @@ export function CallbackContent() {
         router.replace(returnUrl)
       })
       .catch((err: unknown) => {
-        const text = (err as Error)?.message || '登录失败，请稍后重试。'
         setStatus('error')
-        setMessage(text)
+        setMessage(formatApiErrorForUser(err, '登录失败，请稍后重试。'))
       })
   }, [searchParams, exchangeExternalToken, getToken, router])
 

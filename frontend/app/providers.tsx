@@ -2,8 +2,9 @@
 
 import { ClerkProvider, useAuth, useUser } from '@clerk/nextjs'
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { authApi } from '@/lib/api'
+import { authApi, clearPersistedApiCache } from '@/lib/api'
 import { captureAttributionIfPresent, getAttributionPayload } from '@/lib/attribution'
+import { isLikelyExpiredJwt } from '@/lib/session-token'
 
 const APP_TOKEN_STORAGE_KEY = 'mv_app_token'
 const APP_USER_STORAGE_KEY = 'mv_app_user'
@@ -18,7 +19,7 @@ type AppAuthValue = {
   isLoaded: boolean
   isSignedIn: boolean
   authProvider: AppAuthProvider
-  getToken: () => Promise<string | null>
+  getToken: (opts?: { skipCache?: boolean }) => Promise<string | null>
   clearSession: () => Promise<void>
   signInWithAppToken: (token: string, user: AppUser) => Promise<void>
   exchangeExternalToken: (token: string) => Promise<void>
@@ -74,6 +75,7 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.removeItem(APP_TOKEN_STORAGE_KEY)
         localStorage.removeItem(APP_USER_STORAGE_KEY)
+        clearPersistedApiCache()
       }
     } catch {
       // ignore
@@ -84,7 +86,13 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
     isLoaded: true,
     isSignedIn: !!appToken,
     authProvider: appToken ? 'phone' : 'none',
-    getToken: async () => appToken,
+    getToken: async (_opts?: { skipCache?: boolean }) => {
+      if (appToken && isLikelyExpiredJwt(appToken)) {
+        persistAppSession(null, null)
+        return null
+      }
+      return appToken
+    },
     clearSession: async () => persistAppSession(null, null),
     signInWithAppToken: async (token: string, user: AppUser) => {
       persistAppSession(token, user)
@@ -103,6 +111,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
   const [appToken, setAppToken] = useState<string | null>(null)
   const [appUser, setAppUser] = useState<AppUser>(null)
   const exchangeAttemptedRef = useRef(false)
+  const exchangeRetryOnceRef = useRef(false)
   // Clerk 的 getToken 引用常随渲染变化；放进 useCallback 依赖会导致全站 useEffect 反复触发、重复打 API
   const authGetTokenRef = useRef(auth.getToken)
   authGetTokenRef.current = auth.getToken
@@ -130,6 +139,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.removeItem(APP_TOKEN_STORAGE_KEY)
         localStorage.removeItem(APP_USER_STORAGE_KEY)
+        clearPersistedApiCache()
       }
     } catch {
       // ignore
@@ -157,6 +167,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     if (!auth.isLoaded) return
     if (!auth.isSignedIn) {
       exchangeAttemptedRef.current = false
+      exchangeRetryOnceRef.current = false
       return
     }
     if (exchangeAttemptedRef.current) return
@@ -164,12 +175,24 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
 
     authGetTokenRef.current().then((token) => {
       if (!token) return
-      exchangeExternalToken(token).catch(() => undefined)
+      exchangeExternalToken(token).catch(() => {
+        if (exchangeRetryOnceRef.current) return
+        exchangeRetryOnceRef.current = true
+        exchangeAttemptedRef.current = false
+        window.setTimeout(() => {
+          authGetTokenRef.current().then((t) => {
+            if (!t) return
+            exchangeAttemptedRef.current = true
+            exchangeExternalToken(t).catch(() => undefined)
+          })
+        }, 1600)
+      })
     })
   }, [auth.isLoaded, auth.isSignedIn, exchangeExternalToken])
 
   const clearSession = useCallback(async () => {
     exchangeAttemptedRef.current = false
+    exchangeRetryOnceRef.current = false
     persistAppSession(null, null)
     if (auth.isSignedIn) {
       await auth.signOut()
@@ -178,18 +201,28 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
 
   // Clerk 已登录时必须优先用 Clerk JWT。若仍优先返回 localStorage 里的旧 app_token（手机号会话），
   // 多为过期 HS256，后端会 401，表现为已登录但全站报告接口拉不到数据。
-  const getToken = useCallback(async () => {
-    if (auth.isSignedIn) {
-      try {
-        const clerkJwt = await authGetTokenRef.current()
-        if (clerkJwt) return clerkJwt
-      } catch {
-        // ignore
+  const getToken = useCallback(
+    async (opts?: { skipCache?: boolean }) => {
+      if (auth.isSignedIn) {
+        try {
+          const getClerk = authGetTokenRef.current as (p?: { skipCache?: boolean }) => Promise<string | null>
+          const clerkJwt = await getClerk(opts?.skipCache ? { skipCache: true } : undefined)
+          if (clerkJwt) return clerkJwt
+        } catch {
+          // ignore
+        }
       }
-    }
-    if (appToken) return appToken
-    return null
-  }, [appToken, auth.isSignedIn])
+      if (appToken) {
+        if (isLikelyExpiredJwt(appToken)) {
+          persistAppSession(null, null)
+          return null
+        }
+        return appToken
+      }
+      return null
+    },
+    [appToken, auth.isSignedIn, persistAppSession],
+  )
 
   const value: AppAuthValue = {
     isLoaded: auth.isLoaded,

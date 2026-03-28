@@ -90,20 +90,37 @@ function persistSet(key: string, data: unknown, ttl: number): void {
   }
 }
 
+/** 登出时清除按 token 缓存的报告列表/详情等，避免仍看到上一份会话的数据 */
+export function clearPersistedApiCache(): void {
+  if (typeof window === 'undefined') return
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(CACHE_PREFIX)) localStorage.removeItem(k)
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function cachedFetch<T>(
   key: string,
   fetcher: () => Promise<T>,
   ttl = DEFAULT_TTL,
-  opts?: { bypassCache?: boolean }
+  opts?: { bypassCache?: boolean; skipPersist?: boolean }
 ): Promise<T> {
   if (!opts?.bypassCache) {
     const cached = persistGet<T>(key)
     if (cached != null) return Promise.resolve(cached)
   }
   return fetcher().then((data) => {
-    persistSet(key, data, ttl)
+    if (!opts?.skipPersist) persistSet(key, data, ttl)
     return data
   })
+}
+
+/** 列表/日历/按日等必须带登录态；无 token 时不读不写本地缓存，避免旧版「免鉴权」时缓存的成功结果在未登录下仍展示 */
+function authReportPersistOpts(token?: string | null): { bypassCache?: boolean; skipPersist?: boolean } {
+  return token ? {} : { bypassCache: true, skipPersist: true }
 }
 
 function getHeaders(token?: string | null): HeadersInit {
@@ -116,6 +133,13 @@ function getHeaders(token?: string | null): HeadersInit {
   return headers
 }
 
+/** 与报告类接口一致，message 始终带 `API error: <status>`，便于 withTokenRetry / 统一处理 */
+async function throwApiResponseError(res: Response): Promise<never> {
+  const err = await res.json().catch(() => ({}))
+  const detail = (err as { detail?: string }).detail?.trim()
+  throw new Error(detail ? `API error: ${res.status}: ${detail}` : `API error: ${res.status}`)
+}
+
 export function isNetworkError(e: unknown): boolean {
   return (
     (e as { message?: string }).message?.includes('fetch') ||
@@ -126,51 +150,76 @@ export function isNetworkError(e: unknown): boolean {
 
 export const reportsApi = {
   list: (page = 1, pageSize = 20, token?: string | null, scope: 'archive' | 'all' = 'archive') =>
-    cachedFetch(`reports:list:${scope}:${page}:${pageSize}:${token ?? ''}`, async () => {
-      const res = await fetch(
-        apiUrl(`/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`),
-        { headers: getHeaders(token) }
-      )
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      return res.json()
-    }, REPORT_LIST_TTL),
+    cachedFetch(
+      `reports:list:${scope}:${page}:${pageSize}:${token ?? ''}`,
+      async () => {
+        const res = await fetch(
+          apiUrl(`/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`),
+          { headers: getHeaders(token) }
+        )
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        return res.json()
+      },
+      REPORT_LIST_TTL,
+      authReportPersistOpts(token),
+    ),
 
   get: (reportId: string, token?: string | null) =>
-    cachedFetch(`reports:get:${reportId}:${token ?? ''}`, async () => {
-      const res = await fetch(apiUrl(`/api/reports/${reportId}`), {
-        headers: getHeaders(token),
-      })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      return res.json()
-    }, REPORT_TTL),
+    cachedFetch(
+      `reports:get:${reportId}:${token ?? ''}`,
+      async () => {
+        const res = await fetch(apiUrl(`/api/reports/${reportId}`), {
+          headers: getHeaders(token),
+        })
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        return res.json()
+      },
+      REPORT_TTL,
+      authReportPersistOpts(token),
+    ),
 
   getFull: (reportId: string, token?: string | null) =>
-    cachedFetch(`reports:full:${reportId}:${token ?? ''}`, async () => {
-      const res = await fetch(apiUrl(`/api/reports/${reportId}/full`), {
-        headers: getHeaders(token),
-      })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      return res.json()
-    }, REPORT_TTL),
+    cachedFetch(
+      `reports:full:${reportId}:${token ?? ''}`,
+      async () => {
+        const res = await fetch(apiUrl(`/api/reports/${reportId}/full`), {
+          headers: getHeaders(token),
+        })
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        return res.json()
+      },
+      REPORT_TTL,
+      authReportPersistOpts(token),
+    ),
 
   getByDate: (date: string, token?: string | null) =>
-    cachedFetch(`reports:date:${date}:${token ?? ''}`, async () => {
-      const res = await fetch(apiUrl(`/api/reports/date/${date}`), {
-        headers: getHeaders(token),
-      })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      return res.json()
-    }, REPORT_TTL),
+    cachedFetch(
+      `reports:date:${date}:${token ?? ''}`,
+      async () => {
+        const res = await fetch(apiUrl(`/api/reports/date/${date}`), {
+          headers: getHeaders(token),
+        })
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        return res.json()
+      },
+      REPORT_TTL,
+      authReportPersistOpts(token),
+    ),
 
   getCalendar: (year: number, month: number, token?: string | null) =>
-    cachedFetch(`reports:calendar:${year}:${month}:${token ?? ''}`, async () => {
-      const res = await fetch(
-        apiUrl(`/api/reports/calendar?year=${year}&month=${month}`),
-        { headers: getHeaders(token) }
-      )
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      return res.json()
-    }, CALENDAR_TTL),
+    cachedFetch(
+      `reports:calendar:${year}:${month}:${token ?? ''}`,
+      async () => {
+        const res = await fetch(
+          apiUrl(`/api/reports/calendar?year=${year}&month=${month}`),
+          { headers: getHeaders(token) }
+        )
+        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        return res.json()
+      },
+      CALENDAR_TTL,
+      authReportPersistOpts(token),
+    ),
 
   latestSummary: (token?: string | null, opts?: { forceRefresh?: boolean }) =>
     cachedFetch(`reports:latest:${token ?? ''}`, async () => {
@@ -199,10 +248,7 @@ export const paymentsApi = {
       headers: getHeaders(token),
       body: JSON.stringify({ plan }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{ checkout_url: string; order_id: string }>
     }),
 }
@@ -220,16 +266,7 @@ export const usersApi = {
       const res = await fetch(apiUrl('/api/users/me'), {
         headers: getHeaders(token),
       })
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          return {
-            tier: 'observer',
-            daily_query_count: 0,
-            is_active: true,
-          }
-        }
-        throw new Error(`API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json()
     }),
 }
@@ -241,10 +278,7 @@ export const authApi = {
       headers: getHeaders(token),
       body: JSON.stringify({ token, attribution: attribution || undefined }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         provider: string
         app_token: string | null
@@ -264,10 +298,7 @@ export const authApi = {
       method: 'GET',
       headers: getHeaders(token),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         user: {
           user_id: string
@@ -293,10 +324,7 @@ export const authApi = {
       headers: getHeaders(currentToken),
       body: JSON.stringify({ token }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         status: string
         provider: string
@@ -309,10 +337,7 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{ ok: boolean; debug_otp?: string | null }>
     }),
 
@@ -322,10 +347,7 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp, attribution: attribution || undefined }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         ok: boolean
         app_token: string | null
@@ -347,10 +369,7 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp, password, attribution: attribution || undefined }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         ok: boolean
         app_token: string | null
@@ -372,10 +391,7 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, password, attribution: attribution || undefined }),
     }).then(async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { detail?: string }).detail || `API error: ${res.status}`)
-      }
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{
         ok: boolean
         app_token: string | null

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppAuth } from '@/app/providers'
+import { withTokenRetry } from '@/lib/session-token'
+import { formatApiErrorForUser } from '@/lib/api-error-ui'
 import { usersApi, isNetworkError } from '@/lib/api'
 import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle } from 'lucide-react'
 
@@ -109,21 +111,21 @@ function DashboardContent() {
 
   const loadStats = async () => {
     try {
-      const token = await getToken()
-      const data = await usersApi.stats(token)
+      const data = await withTokenRetry(getToken, (token) => usersApi.stats(token))
       setStats(data as UserStats)
     } catch (error: unknown) {
       console.error('加载用户统计失败:', error)
       const msg = (error as Error)?.message ?? ''
-      if (msg.includes('401')) {
-        setStats({ tier: 'observer', daily_query_count: 0, is_active: true })
-        setApiError('请重新登录以同步账户信息')
+      if (msg.includes('401') || msg.includes('403')) {
+        // 与 /api/users/me 一致：勿在鉴权失败时伪装成观察者
+        setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
+        setApiError('登录已失效，请重新登录以同步账户与报告数据。')
       } else if (isNetworkError(error)) {
         setStats({ tier: 'observer', daily_query_count: 0, is_active: true })
         setApiError('无法连接后端，请先启动 API')
       } else {
         setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
-        setApiError('账户信息加载失败，先为你展示默认权益。')
+        setApiError(formatApiErrorForUser(error, '账户信息加载失败，先为你展示默认权益。'))
       }
     } finally {
       setLoading(false)

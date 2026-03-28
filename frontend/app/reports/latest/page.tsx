@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
 import { ArrowRight, Bell, CalendarDays, AlertTriangle, BarChart2, Lock } from 'lucide-react'
 import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
 import type { SnapshotItem } from '@/app/components/report/MarketSnapshot'
@@ -108,27 +109,23 @@ export default function LatestReportPage() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getToken().then((token) => {
-      if (cancelled) return
-      reportsApi
-        .latestSummaryBundle(token)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .then((d: any) => {
-          if (cancelled) return
-          const report = d?.report
-          const next = report && typeof report === 'object' && report.report_date != null ? report as LatestSummary : null
-          setLatest(next)
-          setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
-        })
-        .catch(() => {
-          if (cancelled) return
-          setLatest(null)
-          setOverviewExcerpt('')
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false)
-        })
-    })
+    withTokenRetry(getToken, (token) => reportsApi.latestSummaryBundle(token))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((d: any) => {
+        if (cancelled) return
+        const report = d?.report
+        const next = report && typeof report === 'object' && report.report_date != null ? report as LatestSummary : null
+        setLatest(next)
+        setOverviewExcerpt(typeof d?.overview_teaser === 'string' ? d.overview_teaser : '')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLatest(null)
+        setOverviewExcerpt('')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => { cancelled = true }
   }, [getToken])
 
@@ -143,8 +140,7 @@ export default function LatestReportPage() {
     let cancelled = false
     setDetailLoading(true)
     // 这里直接走 reportsApi 的持久缓存（默认 5 分钟）。
-    getToken()
-      .then((token) => reportsApi.getByDate(latest.report_date, token))
+    withTokenRetry(getToken, (token) => reportsApi.getByDate(latest.report_date, token))
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: any) => {
         if (cancelled) return

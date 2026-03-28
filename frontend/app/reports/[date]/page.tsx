@@ -6,6 +6,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useAppAuth } from '@/app/providers'
 import { reportsApi } from '@/lib/api'
+import { withTokenRetry } from '@/lib/session-token'
 
 import { AlertCircle, ChevronLeft, ChevronRight, BarChart2, LineChart, FileText, AlertTriangle, Newspaper, Layers } from 'lucide-react'
 import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
@@ -140,7 +141,7 @@ interface FullReport {
 
 function useAdjacentDates(
   date: string,
-  getToken: () => Promise<string | null>,
+  getToken: (opts?: { skipCache?: boolean }) => Promise<string | null>,
   canLoad: boolean
 ) {
   const [prev, setPrev] = useState<string | null>(null)
@@ -150,10 +151,10 @@ function useAdjacentDates(
     if (!date || !canLoad) return
     const [year, month] = date.split('-').map(Number)
 
-    const fetchMonth = async (y: number, m: number) => {
-      const token = await getToken()
-      return reportsApi.getCalendar(y, m, token).then((d) => (d.dates as string[]) || [])
-    }
+    const fetchMonth = async (y: number, m: number) =>
+      withTokenRetry(getToken, (token) =>
+        reportsApi.getCalendar(y, m, token).then((d) => (d.dates as string[]) || []),
+      )
 
     const find = async () => {
       try {
@@ -215,8 +216,7 @@ export default function ReportDetailPage() {
     if (!isLoaded || !hasSession) return
     setLoading(true)
     try {
-      const token = await getToken()
-      const res = await reportsApi.getByDate(date, token)
+      const res = await withTokenRetry(getToken, (token) => reportsApi.getByDate(date, token))
       setData(res)
       setAccessAction(null)
       setAccessMessage('')
