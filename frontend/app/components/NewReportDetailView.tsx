@@ -295,9 +295,9 @@ export function NewReportDetailView({
 
   const judgmentPanels = [
     {
-      label: '今日一句话判断',
+      label: '今日主判断',
       title: leadCopy.lead || '今天先不要被 headline 带着跑，先抓住真正改变市场预期的主线。',
-      body: secondaryLead || '这份日报的重点不是把新闻列出来，而是解释它先影响利率、美元、科技股，还是风险偏好本身。',
+      body: secondaryLead || '这份日报的重点不是把新闻列出来，而是先帮用户判断这条消息到底改写了利率、美元、科技股，还是风险偏好本身。',
     },
     {
       label: '当前主线',
@@ -310,7 +310,7 @@ export function NewReportDetailView({
       body: shortText(leadAlert?.direction_note || leadAlert?.ai_summary || '市场暂时没有出现需要立刻追踪的单点风险。', 100),
     },
     {
-      label: '容易误读',
+      label: '最容易误读',
       title: leadBrief?.topic_name ? `别只看「${leadBrief.topic_name}」headline` : '别把新闻数量当成重点',
       body: topicFocus,
     },
@@ -368,9 +368,9 @@ export function NewReportDetailView({
             </div>
           </div>
 
-          <div className="mt-6 new-report-feature-card !p-0 overflow-hidden">
+          <div className="mt-8 new-report-feature-card !overflow-hidden !p-0">
             <div className="grid gap-0 xl:grid-cols-[minmax(0,1.16fr)_380px]">
-              <div className="px-7 py-7 sm:px-8 sm:py-8">
+              <div className="px-7 py-8 sm:px-9 sm:py-10">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="new-home-kicker">US equities daily brief</span>
                   <span className={`new-report-level-chip ${levelClass(report.sentiment_level)}`}>
@@ -378,13 +378,20 @@ export function NewReportDetailView({
                   </span>
                 </div>
 
-                <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                <h1 className="mt-6 max-w-4xl text-[2.35rem] font-semibold tracking-[-0.03em] text-slate-950 sm:text-[4.25rem] sm:leading-[1.02]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                   {report.title || `${report.report_date} 美股与国际金融前瞻`}
                 </h1>
 
-                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-700">
+                <p className="mt-5 max-w-3xl text-[15px] leading-8 text-slate-700 sm:text-lg sm:leading-9">
                   {leadCopy.lead || '这份 briefing 的重点，不是重复 headline，而是先帮你抓住今天真正改变市场预期的主线。'}
                 </p>
+
+                <div className="mt-6 max-w-3xl rounded-[28px] border border-stone-200/80 bg-stone-50/80 px-5 py-4 sm:px-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">Editor&apos;s lens</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">
+                    我们不是把信息重新排版，而是把 headline 翻译成市场语言，帮用户更快看清这条消息真正改变了什么。
+                  </p>
+                </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <span className="new-report-data-pill">
@@ -444,7 +451,7 @@ export function NewReportDetailView({
                 ) : null}
               </div>
 
-              <aside className="border-t border-slate-200/70 bg-slate-950 px-6 py-7 text-slate-50 xl:border-l xl:border-t-0">
+              <aside className="border-t border-stone-200/80 bg-[linear-gradient(180deg,#111827,#0f172a)] px-6 py-8 text-slate-50 xl:border-l xl:border-t-0 sm:px-7">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-400/12">
                     <ShieldAlert className="h-5 w-5 text-amber-300" />
@@ -496,47 +503,51 @@ export function NewReportDetailView({
 
       <section className={`new-home-section !pt-0 ${showStickyCta ? '!pb-28 sm:!pb-32' : ''}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="space-y-8">
-            <div className="new-home-cta-panel !rounded-[34px]">
+          <div className="space-y-10 sm:space-y-12">
+            <div className="new-home-cta-panel !rounded-[36px] border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(248,250,252,0.72))]">
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_340px]">
                 <div>
-                  <p className="new-home-kicker">Judgment desk</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                  <p className="new-home-kicker">Interpretation desk</p>
+                  <h2 className="mt-3 text-[2rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.4rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                     今日判断与验证重点
                   </h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    这一块只做两件事：先把今天怎么看讲清楚，再告诉用户盘前到盘中要先盯什么。
+                  <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-600">
+                    这一块先把我们今天的判断讲明白，再把验证顺序排出来。重点不是信息更多，而是世界被解释得更清楚。
                   </p>
 
-                  <div className="mt-6 grid gap-3 md:grid-cols-2">
+                  <div className="mt-7 grid gap-3 md:grid-cols-2">
                     {judgmentPanels.map((panel) => (
                       <article
                         key={panel.label}
-                        className="rounded-[24px] border border-slate-200/80 bg-white/85 px-5 py-5 shadow-[0_20px_40px_-34px_rgba(15,23,42,0.22)]"
+                        className={`rounded-[24px] border px-5 py-5 shadow-[0_20px_40px_-34px_rgba(15,23,42,0.18)] ${
+                          panel.label === '今日主判断'
+                            ? 'border-slate-900/10 bg-slate-950 text-white'
+                            : 'border-slate-200/80 bg-white/88'
+                        }`}
                       >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{panel.label}</p>
-                        <h3 className="mt-3 text-lg font-semibold leading-7 text-slate-950">{panel.title}</h3>
-                        <p className="mt-3 text-sm leading-7 text-slate-600">{panel.body}</p>
+                        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${panel.label === '今日主判断' ? 'text-amber-200/90' : 'text-slate-400'}`}>{panel.label}</p>
+                        <h3 className={`mt-3 text-lg font-semibold leading-7 ${panel.label === '今日主判断' ? 'text-white' : 'text-slate-950'}`}>{panel.title}</h3>
+                        <p className={`mt-3 text-sm leading-7 ${panel.label === '今日主判断' ? 'text-slate-300' : 'text-slate-600'}`}>{panel.body}</p>
                       </article>
                     ))}
                   </div>
                 </div>
 
-                <aside className="rounded-[30px] bg-slate-950 px-6 py-6 text-slate-50">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-300/90">Today watch</p>
-                  <h3 className="mt-3 text-2xl font-semibold text-white" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                <aside className="rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.65),rgba(255,255,255,0.94))] px-6 py-6 text-slate-950">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">Today watch</p>
+                  <h3 className="mt-3 text-[1.8rem] font-semibold text-slate-950 sm:text-[2rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
                     今天先盯什么
                   </h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">
-                    从盘前到盘中，把验证顺序排出来，不再让用户自己在页面里找重点。
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    从盘前到盘中，把验证顺序排出来。这样用户读完判断，就知道接下来该去哪几个位置确认这套解读成不成立。
                   </p>
 
                   <div className="mt-6 space-y-3">
                     {watchItems.map((item) => (
-                      <article key={item.label} className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200/90">{item.label}</p>
-                        <h4 className="mt-2 text-sm font-semibold text-white">{item.title}</h4>
-                        <p className="mt-3 text-sm leading-7 text-slate-300">{item.body}</p>
+                      <article key={item.label} className="rounded-[22px] border border-slate-200/80 bg-white/85 px-4 py-4 shadow-[0_18px_34px_-30px_rgba(15,23,42,0.18)]">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{item.label}</p>
+                        <h4 className="mt-2 text-sm font-semibold text-slate-950">{item.title}</h4>
+                        <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
                       </article>
                     ))}
                   </div>
@@ -544,7 +555,7 @@ export function NewReportDetailView({
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative pt-1 sm:pt-2">
               <div className="min-w-0">
                 {news_briefs && news_briefs.length > 0 ? (
                   <NewsBriefs items={news_briefs} />
@@ -562,7 +573,7 @@ export function NewReportDetailView({
             )}
           </div>
 
-          <div className="mt-8">
+          <div className="mt-10 sm:mt-12">
             {alerts && alerts.length > 0 ? (
               <AlertsList items={alerts} />
             ) : (
@@ -580,7 +591,7 @@ export function NewReportDetailView({
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">继续阅读</p>
                 <p className="mt-1 text-sm font-medium text-slate-950 sm:text-base">
-                  看完这份解释型日报后，可以继续回看历史判断，或了解会员权益。
+                  如果你认同这种解读世界的方式，可以继续回看历史判断，或了解会员权益。
                 </p>
               </div>
 

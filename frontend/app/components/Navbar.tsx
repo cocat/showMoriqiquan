@@ -7,7 +7,6 @@ import { TrendingUp, Menu, X, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppAuth } from '@/app/providers'
 import { SignInButton } from '@clerk/nextjs'
-import { ModeSwitch } from './ModeSwitch'
 
 function NavLink({
   href,
@@ -122,12 +121,11 @@ export default function Navbar() {
 
           {/* Desktop auth CTA */}
           <div className="hidden sm:flex items-center gap-2">
-            <ModeSwitch />
             {isSignedIn ? (
               <>
                 <Link
                   href="/dashboard"
-                  className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors"
+                  className="px-3 py-1.5 text-sm rounded border border-gold/40 text-gold bg-gold-dim hover:border-gold hover:bg-gold/15 transition-colors"
                 >
                   个人中心
                 </Link>
@@ -135,7 +133,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => clearSession()}
-                    className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors border border-mentat-border"
+                    className="px-3 py-1.5 text-sm rounded border border-mentat-danger/45 text-mentat-danger hover:bg-mentat-danger/10 transition-colors"
                   >
                     退出
                   </button>
@@ -192,7 +190,6 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="sm:hidden border-t border-mentat-border px-4 py-3 space-y-1 bg-mentat-bg">
-          <ModeSwitch mobile onNavigate={() => setMobileOpen(false)} />
           <Link
             href="/reports/latest"
             className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
@@ -240,7 +237,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/dashboard"
-                  className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
+                  className="flex-1 text-center px-3 py-2 text-sm text-gold bg-gold-dim border border-gold/40 rounded transition-colors hover:border-gold hover:bg-gold/15"
                   onClick={() => setMobileOpen(false)}
                 >
                   个人中心
@@ -251,7 +248,7 @@ export default function Navbar() {
                     onClick={() => {
                       clearSession().finally(() => setMobileOpen(false))
                     }}
-                    className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
+                    className="flex-1 text-center px-3 py-2 text-sm text-mentat-danger border border-mentat-danger/45 rounded transition-colors hover:bg-mentat-danger/10"
                   >
                     退出
                   </button>

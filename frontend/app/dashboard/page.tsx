@@ -6,7 +6,7 @@ import { useAppAuth } from '@/app/providers'
 import { withTokenRetry } from '@/lib/session-token'
 import { formatApiErrorForUser } from '@/lib/api-error-ui'
 import { usersApi, isNetworkError } from '@/lib/api'
-import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle } from 'lucide-react'
+import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle, LogOut } from 'lucide-react'
 
 interface UserStats {
   tier: string
@@ -68,38 +68,40 @@ function TrialBanner({ daysLeft, subscriptionEnd }: { daysLeft: number; subscrip
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="h-8 w-32 rounded bg-mentat-border animate-pulse mb-8" />
+    <div className="new-home-shell">
+      <section className="new-home-section !pt-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="h-8 w-32 rounded bg-slate-200 animate-pulse mb-8" />
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6 space-y-4">
+          <div className="new-home-service-card !p-6 space-y-4">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-mentat-border animate-pulse" />
+              <div className="w-14 h-14 rounded-full bg-slate-200 animate-pulse" />
               <div className="space-y-2">
-                <div className="h-4 w-28 rounded bg-mentat-border animate-pulse" />
-                <div className="h-3 w-40 rounded bg-mentat-border animate-pulse" />
+                <div className="h-4 w-28 rounded bg-slate-200 animate-pulse" />
+                <div className="h-3 w-40 rounded bg-slate-200 animate-pulse" />
               </div>
             </div>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-10 rounded-lg bg-mentat-border animate-pulse" />
+              <div key={i} className="h-10 rounded-lg bg-slate-200 animate-pulse" />
             ))}
           </div>
-          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6">
-            <div className="h-5 w-24 rounded bg-mentat-border animate-pulse mb-4" />
+          <div className="new-home-service-card !p-6">
+            <div className="h-5 w-24 rounded bg-slate-200 animate-pulse mb-4" />
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-4 w-full rounded bg-mentat-border animate-pulse" />
+                <div key={i} className="h-4 w-full rounded bg-slate-200 animate-pulse" />
               ))}
             </div>
           </div>
         </div>
       </div>
+      </section>
     </div>
   )
 }
 
 function DashboardContent() {
-  const { isLoaded, user, getToken } = useAppAuth()
+  const { isLoaded, user, getToken, clearSession } = useAppAuth()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -183,12 +185,41 @@ function DashboardContent() {
   const showTrialBanner = daysLeft !== null && daysLeft <= 7
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-mentat-text mb-8">个人中心</h1>
+    <div className="new-home-shell">
+      <section className="new-home-hero">
+        <div className="new-home-orb new-home-orb-left" />
+        <div className="new-home-orb new-home-orb-right" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <div className="mb-8 new-home-terminal-card !rounded-[30px]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="new-home-panel-kicker">Account center</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>个人中心</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                在这里查看当前权限、到期时间和可用功能。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/reports/latest"
+                className="new-home-primary-btn"
+              >
+                查看今日前瞻
+              </Link>
+              <button
+                type="button"
+                onClick={() => clearSession()}
+                className="inline-flex items-center gap-1.5 rounded-2xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+              >
+                <LogOut className="w-4 h-4" />
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
 
         {apiError && (
-          <div className="mb-6 p-4 bg-gold-dim border border-gold/30 rounded-lg text-gold">
+          <div className="mb-6 rounded-2xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-amber-700">
             {apiError}
           </div>
         )}
@@ -198,54 +229,54 @@ function DashboardContent() {
         )}
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6">
+          <div className="new-home-service-card !p-6">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 bg-gold/20 rounded-full flex items-center justify-center">
-                <UserIcon className="w-7 h-7 text-gold" />
+              <div className="w-14 h-14 rounded-full bg-slate-900/5 flex items-center justify-center">
+                <UserIcon className="w-7 h-7 text-slate-700" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-mentat-text">
+                <h2 className="text-lg font-semibold text-slate-950">
                   {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? '用户'}
                 </h2>
-                <p className="text-mentat-muted text-sm">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                <p className="text-slate-500 text-sm">{user?.emailAddresses?.[0]?.emailAddress}</p>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                <span className="text-mentat-muted">账号等级</span>
+              <div className="flex items-center justify-between p-3 bg-slate-100/70 rounded-2xl">
+                <span className="text-slate-500">账号等级</span>
                 <span className={`px-3 py-1 ${tierInfo.bg} ${tierInfo.color} rounded-full text-sm font-medium flex items-center gap-1`}>
                   <Crown className="w-4 h-4" />
                   {tierInfo.name}
                 </span>
               </div>
               {stats?.subscription_end && (
-                <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                  <span className="text-mentat-muted">
+                <div className="flex items-center justify-between p-3 bg-slate-100/70 rounded-2xl">
+                  <span className="text-slate-500">
                     {daysLeft !== null && daysLeft > 0 ? '权限到期' : '权限状态'}
                   </span>
-                  <span className="text-mentat-text flex items-center gap-1">
+                  <span className="text-slate-800 flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
                     {new Date(stats.subscription_end).toLocaleDateString('zh-CN')}
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-between p-3 bg-mentat-bg-subtle rounded-lg">
-                <span className="text-mentat-muted">今日查看次数</span>
-                <span className="text-mentat-text font-medium">{stats?.daily_query_count ?? 0}</span>
+              <div className="flex items-center justify-between p-3 bg-slate-100/70 rounded-2xl">
+                <span className="text-slate-500">今日查看次数</span>
+                <span className="text-slate-800 font-medium">{stats?.daily_query_count ?? 0}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-mentat-card border border-mentat-border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-mentat-text mb-4">当前权益</h3>
+          <div className="new-home-service-card !p-6">
+            <h3 className="text-lg font-semibold text-slate-950 mb-4">当前权益</h3>
             <div className="space-y-3">
               {entitlements.map((item) => (
                 <div key={item.text} className="flex items-start gap-2">
-                  <span className={item.enabled ? 'text-mentat-success' : 'text-mentat-muted-secondary'}>
+                  <span className={item.enabled ? 'text-emerald-600' : 'text-slate-400'}>
                     {item.enabled ? '✓' : '✗'}
                   </span>
-                  <span className={item.enabled ? 'text-mentat-muted' : 'text-mentat-muted-secondary'}>
+                  <span className={item.enabled ? 'text-slate-600' : 'text-slate-400'}>
                     {item.text}
                   </span>
                 </div>
@@ -258,28 +289,29 @@ function DashboardContent() {
           {(!stats?.subscription_end || new Date(stats.subscription_end) < new Date()) && (
             <Link
               href="/reports/latest"
-              className="block p-4 bg-gold-dim border border-gold/40 rounded-lg hover:border-gold transition"
+              className="block rounded-2xl border border-amber-300/80 bg-amber-50 p-4 hover:border-amber-400 transition"
             >
-              <h4 className="font-semibold text-gold mb-1">继续查看今日报告</h4>
-              <p className="text-sm text-mentat-muted">先看最新，再按需回看历史报告</p>
+              <h4 className="font-semibold text-amber-700 mb-1">继续查看今日报告</h4>
+              <p className="text-sm text-slate-600">先看最新，再按需回看历史报告</p>
             </Link>
           )}
           <Link
             href="/reports"
-            className="block p-4 bg-mentat-card border border-mentat-border rounded-lg hover:border-gold transition"
+            className="new-home-service-card !rounded-2xl !p-4 block"
           >
-            <h4 className="font-semibold text-mentat-text mb-1">查看报告</h4>
-            <p className="text-sm text-mentat-muted">浏览按日期索引的日报</p>
+            <h4 className="font-semibold text-slate-950 mb-1">查看报告</h4>
+            <p className="text-sm text-slate-600">浏览按日期索引的日报</p>
           </Link>
           <Link
             href="/account/security"
-            className="block p-4 bg-mentat-card border border-mentat-border rounded-lg hover:border-gold transition"
+            className="new-home-service-card !rounded-2xl !p-4 block"
           >
-            <h4 className="font-semibold text-mentat-text mb-1">账号安全</h4>
-            <p className="text-sm text-mentat-muted">绑定不同登录方式，统一到同一账号</p>
+            <h4 className="font-semibold text-slate-950 mb-1">账号安全</h4>
+            <p className="text-sm text-slate-600">绑定不同登录方式，统一到同一账号</p>
           </Link>
         </div>
       </div>
+      </section>
     </div>
   )
 }

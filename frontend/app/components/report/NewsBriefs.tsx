@@ -51,20 +51,20 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
 
   return (
     <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="new-home-cta-panel !rounded-[34px]">
+      <div className="new-home-cta-panel !rounded-[40px] border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(250,247,242,0.94))]">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="new-home-kicker">News translation</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+            <p className="new-home-kicker">Translation stage</p>
+            <h2 className="mt-3 text-[2.15rem] font-semibold tracking-[-0.025em] text-slate-950 sm:text-[2.75rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
               新闻翻译台
             </h2>
           </div>
-          <p className="max-w-2xl text-sm leading-7 text-slate-500">
-            当前展示的类目不是前端写死的，而是当天摘要数据里返回的 `topic_name`，会随当天主线变化。
+          <p className="max-w-2xl text-sm leading-8 text-slate-500">
+            这里不是把消息按栏目排开，而是把 headline 翻译成市场语言。当天展示的类目来自摘要数据里的 `topic_name`，会跟着主线变化。
           </p>
         </div>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="mt-8 grid gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
           <aside className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             {items.map((item, index) => (
               <button
@@ -73,8 +73,8 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
                 onClick={() => setActiveIndex(index)}
                 className={`rounded-[24px] border px-4 py-4 text-left transition ${
                   activeIndex === index
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-[0_24px_44px_-36px_rgba(15,23,42,0.45)]'
-                    : 'border-slate-200/80 bg-white/75 text-slate-900 hover:border-slate-300 hover:bg-white'
+                    ? 'border-slate-900 bg-slate-950 text-white shadow-[0_28px_52px_-36px_rgba(15,23,42,0.52)]'
+                    : 'border-stone-200/80 bg-white/82 text-slate-900 hover:border-stone-300 hover:bg-white'
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
@@ -96,11 +96,11 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
           </aside>
 
           {activeItem ? (
-            <article className="rounded-[32px] border border-slate-200/80 bg-white/92 px-5 py-5 shadow-[0_28px_48px_-36px_rgba(15,23,42,0.24)] sm:px-6">
+            <article className="rounded-[36px] border border-stone-200/80 bg-white/96 px-5 py-5 shadow-[0_34px_60px_-40px_rgba(15,23,42,0.22)] sm:px-7 sm:py-7">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Translation card</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{activeItem.topic_name ?? '新闻翻译'}</h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Research card</p>
+                  <h3 className="mt-2 text-[1.9rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.35rem]">{activeItem.topic_name ?? '新闻翻译'}</h3>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -128,23 +128,23 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-[26px] border border-rose-200/70 bg-rose-50/90 px-5 py-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-500">市场真正交易什么</p>
-                <p className="mt-3 text-sm leading-8 text-rose-700">
+              <div className="mt-6 rounded-[30px] border border-slate-900/8 bg-slate-950 px-5 py-5 text-white sm:px-6 sm:py-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200/90">市场真正交易什么</p>
+                <p className="mt-3 text-[15px] leading-8 text-slate-100 sm:text-base sm:leading-9">
                   {activeItem.impact || '这条消息真正重要的地方，在于它是否改变了资金对利率、美元或板块预期的判断。'}
                 </p>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
-                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/90 px-5 py-5">
+              <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                <div className="rounded-[26px] border border-stone-200/80 bg-stone-50/92 px-5 py-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">发生了什么</p>
                   <p className="mt-3 text-sm leading-8 text-slate-700">
                     {activeItem.body || '原始新闻背景暂未补充。'}
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-sky-200/70 bg-white px-5 py-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">今天先验证</p>
+                <div className="rounded-[26px] border border-sky-200/70 bg-sky-50/55 px-5 py-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">今天先验证</p>
                   <p className="mt-3 text-sm leading-8 text-slate-600">
                     {buildValidationHint(activeItem)}
                   </p>
@@ -152,7 +152,7 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
               </div>
 
               {activeItem.sources && activeItem.sources.length > 0 ? (
-                <div className="mt-4 rounded-[22px] border border-slate-200/70 bg-slate-50/75 px-5 py-5">
+                <div className="mt-5 rounded-[24px] border border-stone-200/70 bg-stone-50/75 px-5 py-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">原始来源</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {activeItem.sources.map((source, sourceIndex) => (

@@ -394,10 +394,10 @@ export default function HomePage() {
               <div className="new-home-cta-panel !border-0 !bg-transparent !p-0 !shadow-none">
                 <p className="new-home-kicker">Daily brief</p>
                 <h2 className="mt-3 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>
-                  今日前瞻暂时不可用。
+                  暂无权限，可以登录后查看。
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  {loadError}
+                  暂无权限，可以登录后查看。
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link href="/reports" className="new-home-secondary-btn">

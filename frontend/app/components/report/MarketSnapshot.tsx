@@ -36,16 +36,16 @@ export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
 
   return (
     <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="new-home-cta-panel !rounded-[34px]">
+      <div className="new-home-cta-panel !rounded-[34px] border-stone-200/65 bg-white/58">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="new-home-kicker">Market validation</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+            <h2 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.05rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
               盘前市场快照
             </h2>
           </div>
-          <p className="max-w-2xl text-sm leading-7 text-slate-500">
-            用资产价格确认 headline 有没有真正落地。看利率、美元、指数和重点板块是否给出一致反应。
+          <p className="max-w-2xl text-sm leading-8 text-slate-500">
+            这一层不是再看更多新闻，而是用资产价格确认我们的解释有没有被市场认真交易。重点看利率、美元、指数和关键板块是否同向。
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {groupItems.map((row, index) => {
                   const pct = row.pct_change ?? 0
-                  const directionClass = pct > 0 ? 'border-emerald-200 bg-emerald-50/45' : pct < 0 ? 'border-rose-200 bg-rose-50/45' : 'border-slate-200 bg-slate-50/65'
+                  const directionClass = pct > 0 ? 'border-emerald-200 bg-emerald-50/38' : pct < 0 ? 'border-rose-200 bg-rose-50/38' : 'border-stone-200 bg-stone-50/72'
                   const pctClass = pct > 0 ? 'text-emerald-600' : pct < 0 ? 'text-rose-600' : 'text-slate-500'
                   const Card = row.link ? 'a' : 'div'
                   const cardProps = row.link ? { href: row.link, target: '_blank', rel: 'noopener noreferrer' } : {}
@@ -71,7 +71,7 @@ export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
                   return (
                     <Card
                       key={`${row.symbol}-${index}`}
-                      className={`rounded-[24px] border px-4 py-4 shadow-[0_22px_38px_-36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 ${directionClass}`}
+                      className={`rounded-[24px] border px-4 py-4 shadow-[0_18px_34px_-30px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 ${directionClass}`}
                       {...cardProps}
                     >
                       <div className="flex items-start justify-between gap-3">

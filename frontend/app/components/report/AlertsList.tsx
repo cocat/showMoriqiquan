@@ -150,16 +150,16 @@ export function AlertsList({ items }: { items: AlertItem[] }) {
 
   return (
     <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="new-home-cta-panel !rounded-[34px]">
+      <div className="new-home-cta-panel !rounded-[34px] border-stone-200/65 bg-white/58">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="new-home-kicker">Risk watch</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-              风险观察清单
+            <h2 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.05rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              哪些 headline 还没被市场真正交易
             </h2>
           </div>
-          <p className="max-w-2xl text-sm leading-7 text-slate-500">
-            改成折叠式观察卡，先快速扫一遍今天有哪些风险，再按需展开重点项。
+          <p className="max-w-2xl text-sm leading-8 text-slate-500">
+            这里不是重复当天消息，而是把还可能继续发酵、值得二次确认的风险单独拎出来。默认只展开最关键的一条，方便快速扫读。
           </p>
         </div>
 
