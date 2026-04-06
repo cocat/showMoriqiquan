@@ -190,10 +190,10 @@ export default function LatestReportCard({ data: dataProp, aiTeaser }: LatestRep
                 <span>最新报告</span>
               </div>
               <h3 className="text-white font-semibold text-xl sm:text-[30px] leading-[1.18] tracking-tight">
-                {data.title || `${data.report_date} 市场情报日报`}
+                {data.title || `${data.report_date} 美股与国际金融前瞻`}
               </h3>
               <p className="text-sm text-mentat-muted-secondary mt-3 max-w-3xl">
-                浓缩当天关键信号，帮你快速看懂风险级别、事件热度和市场情绪。
+                浓缩当天关键驱动与风险提示，帮助用户更快理解盘前情绪、事件热度和市场方向。
               </p>
             </div>
 

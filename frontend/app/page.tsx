@@ -3,28 +3,30 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { SignInButton } from '@clerk/nextjs'
-import { useAppAuth } from '@/app/providers'
-import { reportsApi } from '@/lib/api'
-import { withTokenRetry } from '@/lib/session-token'
-import { InsightCard, SectionHeader } from './components/HomePrimitives'
 import {
   ArrowRight,
-  BarChart2,
-  Bell,
-  History,
-  AlertTriangle,
+  BellRing,
+  BriefcaseBusiness,
+  CalendarRange,
+  ChartCandlestick,
+  CircleAlert,
+  Clock3,
+  Globe2,
+  Layers3,
+  ShieldCheck,
   Sparkles,
-  FileText,
-  Layers,
+  TrendingUp,
 } from 'lucide-react'
+import { useAppAuth } from '@/app/providers'
+import { reportsApi } from '@/lib/api'
+import { formatApiErrorForUser } from '@/lib/api-error-ui'
+import { withTokenRetry } from '@/lib/session-token'
 
 interface LatestSummary {
   report_id: string
   report_date: string
   title?: string
   generated_at?: string
-  push_type?: string
-  time_slot?: string
   sentiment_score?: number
   sentiment_level?: string
   red_count?: number
@@ -42,649 +44,729 @@ interface AlertPreview {
   ai_summary?: string
 }
 
-const levelColor = (level?: string) => {
-  switch ((level || '').toLowerCase()) {
-    case 'danger': return '#FF4444'
-    case 'alert': return '#D4A55A'
-    case 'watch': return '#C19A6B'
-    default: return '#4CAF50'
-  }
-}
-
 const levelLabel = (level?: string) => {
   switch ((level || '').toLowerCase()) {
-    case 'danger': return '危险'
+    case 'danger': return '高风险'
     case 'alert': return '警戒'
     case 'watch': return '关注'
-    default: return '平静'
+    default: return '平稳'
   }
 }
 
-const valuePoints = [
+const heroBenefitCards = [
   {
-    title: '多维覆盖',
-    description: '宏观、资金、指数、主题、事件、期权六个维度一起看。',
-    meta: 'coverage',
-    points: ['跨资产横截面监控', '多源信号交叉验证'],
+    title: '先给判断',
+    description: '先知道今天偏进攻、偏防守还是先观望，再决定要不要深读。',
   },
   {
-    title: '高频更新',
-    description: '每天固定时间更新，内容结构统一，便于快速复盘和决策。',
-    meta: 'cadence',
-    points: ['每日 08:00 输出', '7 天连续可回溯'],
+    title: '跨时区阅读',
+    description: '把 ET 与本地时间放到同一视图里，减少时差带来的信息断层。',
   },
   {
-    title: '专业筛选',
-    description: '先按预警级别过滤噪声，再用 AI 提炼重点风险与机会。',
-    meta: 'signal quality',
-    points: ['红黄双级优先级', '方向建议可直接执行'],
+    title: '只抓主驱动',
+    description: '聚焦利率、美元、美债、科技股和国际风险，而不是平铺大量新闻。',
+  },
+]
+
+const heroSupportRows = [
+  {
+    title: '适合上班前 3 分钟打开',
+    description: '先完成第一次盘前判断，不需要同时切多个信息源。',
+    icon: Clock3,
+  },
+  {
+    title: '更适合海外华人的语境',
+    description: '用中文快速理解美股与国际金融变化，但保留市场结构与专业感。',
+    icon: Globe2,
+  },
+  {
+    title: '像一份固定研究输入',
+    description: '不是刷资讯，而是每天稳定补充一份结构化盘前前瞻。',
+    icon: Sparkles,
+  },
+]
+
+const audienceCards = [
+  {
+    title: '中文快速理解美股与国际金融',
+    description: '把盘前资讯压缩成中文结论、驱动与风险提示，减少来回切英文终端、媒体和社交平台的成本。',
+    points: ['先给判断，再给信号', '更适合工作日前 3 分钟阅读'],
+    icon: Globe2,
+  },
+  {
+    title: '更适合跨时区的阅读节奏',
+    description: '晨报逻辑围绕美股交易时段展开，同时补上 ET 与本地时间语境，让海外华人更容易对齐阅读节奏。',
+    points: ['突出盘前与重要事件窗口', '适合通勤、午休和收盘后复盘'],
+    icon: Clock3,
+  },
+  {
+    title: '关注关键联动，而不是铺满新闻',
+    description: '重点跟踪宏观、利率、美元、美债、科技股与全球风险事件，帮助用户更快理解市场背后的主驱动。',
+    points: ['不覆盖 A 股，聚焦美股与国际金融', '内容更像研究产品，而不是资讯门户'],
+    icon: ChartCandlestick,
+  },
+]
+
+const trackingCards = [
+  {
+    step: '01',
+    title: '利率路径与美债收益率',
+    description: '先看美联储预期、收益率曲线和流动性环境，再判断高估值板块承压还是修复。',
+  },
+  {
+    step: '02',
+    title: '美元强弱与全球风险偏好',
+    description: '美元、避险资产和跨市场情绪变化，往往决定当天风险偏好是扩散还是收缩。',
+  },
+  {
+    step: '03',
+    title: '大型科技股与主题板块',
+    description: '把指数层面的波动拆回到科技龙头、AI 链条和重点行业上，帮助用户识别真正的驱动源。',
+  },
+]
+
+const weeklyFocusRows = [
+  {
+    label: '周初',
+    title: '先确认利率、美元和美债收益率怎么定价',
+    description: '一周开始先看流动性和利率路径，判断市场是继续偏防守，还是有风险偏好回升的空间。',
+  },
+  {
+    label: '周中',
+    title: '再看财报、主题板块和大型科技股怎么反馈',
+    description: '真正影响节奏的，往往不是消息数量，而是重点公司与高权重板块有没有把情绪接住。',
+  },
+  {
+    label: '周后',
+    title: '最后检查风险有没有扩散成更大的交易主题',
+    description: '地缘、政策、监管和避险情绪如果外溢，往往会把原本局部的扰动推成全市场的风险定价。',
   },
 ]
 
 const reportModules = [
   {
-    title: '情绪仪表盘 + 行情快照',
-    description: '量化市场情绪，叠加核心指数与品种表现，一眼判断今日风险等级。',
-    icon: BarChart2,
-    meta: 'market state',
-    points: ['情绪指数 regime 标定', '跨品种同屏对比'],
+    title: '今日结论',
+    description: '先给一段盘前核心判断，帮助用户快速知道今天是偏进攻、偏防守还是先观望。',
   },
   {
-    title: '红黄两级预警 + 方向建议',
-    description: 'AI 挑出重要事件并给出方向提示，决定「需要盯」还是「可忽略」。',
-    icon: Bell,
-    meta: 'risk radar',
-    points: ['重大/重要预警区分', '事件与策略建议绑定'],
+    title: '风险温度',
+    description: '情绪指数、预警密度和重要事件集中度，用来判断当天的波动级别。',
   },
   {
-    title: '新闻脉络 + 主题热度 + 期权视角',
-    description: '新闻按主题归类、热度对比，关键资产补充期权情绪信号。',
-    icon: History,
-    meta: 'context layer',
-    points: ['主题热度日环比', '期权情绪辅助验证'],
+    title: '盘前市场快照',
+    description: '覆盖指数、美元、美债、黄金与重点板块，快速建立跨资产背景。',
+  },
+  {
+    title: '三大驱动',
+    description: '把最重要的宏观、政策或公司层面驱动抽出来，而不是让用户自己在新闻里找答案。',
+  },
+  {
+    title: '重点板块与龙头股',
+    description: '关注科技股、AI、半导体与其他当天最关键的交易主题，方便把判断落到标的层。',
+  },
+  {
+    title: '风险提示与后续观察',
+    description: '明确提醒还没定价完的风险点，以及接下来几个交易时段要继续盯什么。',
   },
 ]
 
-const coverageTags = [
-  '宏观驱动',
-  '跨资产资金流',
-  '事件风险',
-  '主题热度',
-  '期权情绪',
-  'AI 行动建议',
+const membershipCards = [
+  {
+    title: '免费预览',
+    price: 'Guest',
+    description: '先体验阅读结构和摘要压缩能力，确认内容节奏适合自己的使用习惯。',
+    points: ['可查看首页预览与部分摘要', '适合先了解内容风格', '进入完整报告前先建立判断框架'],
+    accent: 'subtle',
+  },
+  {
+    title: 'Observer 会员',
+    price: '$29.9 / 月',
+    description: '完整解锁每日简报、近 7 天历史内容和专题追踪，适合需要稳定盘前输入的用户。',
+    points: ['完整前瞻与风险提示', '近 7 天历史简报回看', '专题追踪与研究型阅读路径'],
+    accent: 'featured',
+  },
 ]
 
-const loginHighlights = [
-  '开盘前 10 分钟看完当天风险与机会',
-  '红黄预警直接标注优先级，减少筛选成本',
-  '关键事件附带方向建议，便于快速制定计划',
+const methodCards = [
+  {
+    title: '信息来源',
+    description: '内容以公开市场信息、多源信号和结构化整理为基础，重点是筛选与解释，不是堆原始链接。',
+  },
+  {
+    title: '输出原则',
+    description: '优先给出结论、驱动和风险边界，再补充背景与延伸阅读，保证忙碌用户也能快速使用。',
+  },
+  {
+    title: '风险边界',
+    description: '站点提供的是市场前瞻与风险提示，不构成个股推荐或投资收益承诺。',
+  },
 ]
+
+const trackingTopics = ['美联储路径', '美元与美债', '大型科技股', 'AI 与半导体', '财报季', '全球风险事件']
+
+function cut(text?: string | null, max = 120) {
+  if (!text) return ''
+  const cleaned = text.trim()
+  if (cleaned.length <= max) return cleaned
+  return `${cleaned.slice(0, max).trim()}…`
+}
+
+function formatClock(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(new Date(value))
+}
+
+function buildTimeContext(value: string, viewerTimeZone: string) {
+  try {
+    const localLabel = viewerTimeZone.split('/').pop()?.replace(/_/g, ' ') || '本地时间'
+    return {
+      et: formatClock(value, 'America/New_York'),
+      local: formatClock(value, viewerTimeZone),
+      localLabel,
+    }
+  } catch {
+    return null
+  }
+}
 
 export default function HomePage() {
   const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
-  const { getToken, authProvider, isSignedIn } = useAppAuth()
+  const { getToken, isSignedIn } = useAppAuth()
   const [latest, setLatest] = useState<LatestSummary | null>(null)
-  const [overviewExcerpt, setOverviewExcerpt] = useState<string>('')
+  const [overviewExcerpt, setOverviewExcerpt] = useState('')
   const [alerts, setAlerts] = useState<AlertPreview[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [viewerTimeZone, setViewerTimeZone] = useState('')
   const alertsFetchedDateRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    try {
+      setViewerTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || '')
+    } catch {
+      setViewerTimeZone('')
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+
     withTokenRetry(getToken, (token) => reportsApi.latestSummaryBundle(token))
-      .then((d) => {
+      .then((data) => {
         if (cancelled) return
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const anyD = d as any
-        const report = anyD?.report
-        const parsed = report && typeof report === 'object' && report.report_date != null ? report : null
-        setLatest(parsed)
-        setOverviewExcerpt(typeof anyD?.overview_teaser === 'string' ? anyD.overview_teaser : '')
+        const report = (data as { report?: LatestSummary; overview_teaser?: string })?.report
+        setLatest(report ?? null)
+        setOverviewExcerpt(typeof (data as { overview_teaser?: string })?.overview_teaser === 'string' ? (data as { overview_teaser?: string }).overview_teaser! : '')
+        setLoadError('')
       })
-      .catch(() => {
-        if (!cancelled) {
-          setLatest(null)
-          setOverviewExcerpt('')
-          setAlerts([])
-        }
+      .catch((error) => {
+        if (cancelled) return
+        setLatest(null)
+        setOverviewExcerpt('')
+        setAlerts([])
+        setLoadError(formatApiErrorForUser(error, '今日前瞻暂时无法加载，请稍后再试。'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
-  }, [getToken, authProvider])
+
+    return () => {
+      cancelled = true
+    }
+  }, [getToken])
 
   useEffect(() => {
     const reportDate = latest?.report_date
-    if (!reportDate) return
-    // 已登录（Clerk 或手机号 app_token）即可拉取当日预警预览
-    if (!isSignedIn) return
+    if (!reportDate || !isSignedIn) return
     if (alertsFetchedDateRef.current === reportDate) return
     alertsFetchedDateRef.current = reportDate
 
     let cancelled = false
     withTokenRetry(getToken, (token) => reportsApi.getByDate(reportDate, token))
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((detail: any) => {
+      .then((detail) => {
         if (cancelled) return
-        setAlerts(Array.isArray(detail?.alerts) ? detail.alerts.slice(0, 5) : [])
+        const value = detail as { alerts?: AlertPreview[] }
+        setAlerts(Array.isArray(value.alerts) ? value.alerts.slice(0, 4) : [])
       })
       .catch(() => {
         if (!cancelled) setAlerts([])
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [latest?.report_date, isSignedIn, getToken])
 
-  const color = levelColor(latest?.sentiment_level)
-  const red = latest?.red_count ?? 0
-  const yellow = latest?.yellow_count ?? 0
-  const items = latest?.item_count ?? 0
-  const topics = latest?.topic_count ?? 0
-  const sources = latest?.multi_source_count ?? 0
-  const totalAlerts = red + yellow
-  const criticalShare = totalAlerts > 0 ? `${Math.round((red / totalAlerts) * 100)}%` : '--'
-  const alertDensity = items > 0 ? `${Math.round((totalAlerts / items) * 100)}%` : '--'
-  const redRatio = totalAlerts > 0 ? `${Math.round((red / totalAlerts) * 100)}%` : '--'
-  const yellowRatio = totalAlerts > 0 ? `${Math.round((yellow / totalAlerts) * 100)}%` : '--'
-  const signalsPerTopic = topics > 0 ? (items / topics).toFixed(1) : '--'
-  const alertsPerTopic = topics > 0 ? (totalAlerts / topics).toFixed(1) : '--'
-  const sourceCoverage = items > 0 && sources > 0 ? `${Math.round((sources / items) * 100)}%` : '--'
-  const gaugePercent = latest?.sentiment_score != null
-    ? Math.min(100, Math.max(0, latest.sentiment_score))
-    : null
-  const leftAlerts = alerts.filter((_, index) => index % 2 === 0)
-  const rightAlerts = alerts.filter((_, index) => index % 2 === 1)
-  const detailHref = '/reports/latest'
+  const totalAlerts = (latest?.red_count ?? 0) + (latest?.yellow_count ?? 0)
   const afterSignInUrl = '/reports/latest'
-  const generatedTime = latest?.generated_at
-    ? new Date(latest.generated_at).toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })
-    : '--'
-  const reportIdShort = latest?.report_id ? latest.report_id.slice(-8).toUpperCase() : '--'
-  const pushLabel = latest?.push_type || latest?.time_slot || 'daily'
+  const timeContext = latest?.generated_at && viewerTimeZone ? buildTimeContext(latest.generated_at, viewerTimeZone) : null
+  const heroMetrics = [
+    { value: latest?.sentiment_score ?? '--', label: '情绪指数', icon: TrendingUp, tint: 'text-sky-600' },
+    { value: latest ? `${totalAlerts} 条` : '--', label: '重点预警', icon: BellRing, tint: 'text-rose-500' },
+    { value: latest?.topic_count != null ? String(latest.topic_count) : '--', label: '主题覆盖', icon: Layers3, tint: 'text-amber-600' },
+    { value: latest?.multi_source_count != null ? String(latest.multi_source_count) : '--', label: '多源信号', icon: CalendarRange, tint: 'text-slate-500' },
+  ]
+  const previewFocus = alerts.length > 0
+    ? alerts.slice(0, 3).map((item) => item.zh_title || item.title || item.ai_summary || '重点预警')
+    : ['先看盘前结论与风险温度', '再看当天最关键的宏观驱动', '最后确认重点板块与后续观察点']
 
   return (
-    <div className="min-h-screen bg-mentat-bg-page">
-      {/* ===== 首屏：紧凑品牌行 + 日报核心内容 ===== */}
-      <section className="relative border-b border-mentat-border-section bg-gradient-to-b from-mentat-bg-gradient-start to-mentat-bg-page">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-5 sm:pt-5 sm:pb-6">
-          {/* 品牌行 */}
-          <div className="mb-3">
-            <div>
-              <div className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.2em] mb-1">
-                market intelligence daily brief
+    <div className="new-home-shell">
+      <section className="new-home-hero">
+        <div className="new-home-orb new-home-orb-left" />
+        <div className="new-home-orb new-home-orb-right" />
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+          <div className="grid gap-6 lg:grid-cols-[1.14fr_0.86fr] lg:items-center">
+            <div className="max-w-4xl">
+              <div className="new-home-eyebrow">
+                <span className="new-home-dot" />
+                US equities & global macro brief
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">
-                市场情报晨报
-                {latest?.report_date && (
-                  <span className="text-gold font-semibold text-lg sm:text-xl ml-2">
-                    {latest.report_date}
-                  </span>
-                )}
+              <h1 className="mt-4 max-w-4xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl lg:text-5xl" style={{ fontFamily: 'var(--font-display)' }}>
+                用中文，3 分钟读懂开盘前最重要的美股与国际金融信号。
               </h1>
-            </div>
-          </div>
-
-          {/* 日报主体：左右两栏 */}
-          {loading ? (
-            <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card/40 p-6 animate-pulse">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7 space-y-3">
-                  <div className="h-5 w-2/3 bg-white/5 rounded" />
-                  <div className="h-4 w-full bg-white/5 rounded" />
-                  <div className="h-4 w-5/6 bg-white/5 rounded" />
-                  <div className="h-16 bg-white/5 rounded-lg mt-4" />
-                  <div className="h-16 bg-white/5 rounded-lg" />
-                </div>
-                <div className="lg:col-span-5 space-y-3">
-                  <div className="h-24 bg-white/5 rounded-xl" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="h-16 bg-white/5 rounded-lg" />
-                    <div className="h-16 bg-white/5 rounded-lg" />
-                    <div className="h-16 bg-white/5 rounded-lg" />
-                    <div className="h-16 bg-white/5 rounded-lg" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : latest ? (
-            <Link href={detailHref} className="block group">
-              <div className="rounded-xl border border-mentat-border-card bg-gradient-to-br from-[#0f1116] via-[#141720] to-[#0b0d12] overflow-hidden hover:border-gold/30 transition-colors">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-                  {/* 左栏：高密度摘要区 */}
-                  <div className="lg:col-span-8 p-4 sm:p-4 lg:border-r lg:border-mentat-border-card">
-                    <h2 className="text-base sm:text-lg font-semibold text-white leading-snug mb-2 group-hover:text-gold transition-colors">
-                      {latest.title || `${latest.report_date} 市场情报日报`}
-                    </h2>
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.08em] text-mentat-muted-secondary">
-                      <span className="rounded border border-mentat-border-card bg-black/20 px-1.5 py-0.5">Updated {generatedTime}</span>
-                      <span className="rounded border border-mentat-border-card bg-black/20 px-1.5 py-0.5">Risk {levelLabel(latest?.sentiment_level)}</span>
-                      <span className="rounded border border-mentat-border-card bg-black/20 px-1.5 py-0.5">Push {pushLabel}</span>
-                      <span className="rounded border border-mentat-border-card bg-black/20 px-1.5 py-0.5">ID {reportIdShort}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2">
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Signals</p>
-                        <p className="text-sm font-mono font-semibold text-white leading-none mt-0.5">{items || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Alerts</p>
-                        <p className="text-sm font-mono font-semibold text-mentat-warning leading-none mt-0.5">{totalAlerts || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Critical %</p>
-                        <p className="text-sm font-mono font-semibold text-mentat-danger leading-none mt-0.5">{criticalShare}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Density</p>
-                        <p className="text-sm font-mono font-semibold text-gold leading-none mt-0.5">{alertDensity}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Red Ratio</p>
-                        <p className="text-sm font-mono font-semibold text-mentat-danger leading-none mt-0.5">{redRatio}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Yellow Ratio</p>
-                        <p className="text-sm font-mono font-semibold text-mentat-warning leading-none mt-0.5">{yellowRatio}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Sig/Topic</p>
-                        <p className="text-sm font-mono font-semibold text-white leading-none mt-0.5">{signalsPerTopic}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/25 px-2 py-1.5">
-                        <p className="text-[9px] uppercase tracking-[0.1em] font-mono text-mentat-muted-tertiary">Src Cover</p>
-                        <p className="text-sm font-mono font-semibold text-white leading-none mt-0.5">{sourceCoverage}</p>
-                      </div>
-                    </div>
-
-                    {overviewExcerpt && (
-                      <div className="rounded-lg border border-gold/20 bg-gradient-to-r from-[#2A2115]/60 to-[#1F1A13]/40 p-2.5 mb-2.5">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Sparkles className="w-3 h-3 text-gold flex-shrink-0" />
-                          <span className="text-[10px] font-medium text-gold uppercase tracking-wider">AI 摘要</span>
-                        </div>
-                        <p className="text-[12px] text-mentat-text-secondary leading-relaxed line-clamp-2">
-                          {overviewExcerpt}
-                        </p>
-                      </div>
-                    )}
-
-                    {alerts.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <div className="text-[10px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.12em]">
-                            预警速览
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[9px] font-mono">
-                            <span className="px-1.5 py-0.5 rounded border border-red-900/40 bg-red-950/30 text-mentat-danger">R {red}</span>
-                            <span className="px-1.5 py-0.5 rounded border border-amber-900/40 bg-amber-950/20 text-mentat-warning">Y {yellow}</span>
-                            <span className="px-1.5 py-0.5 rounded border border-mentat-border-card bg-black/20 text-mentat-muted-secondary">A/T {alertsPerTopic}</span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                          {[leftAlerts, rightAlerts].map((columnAlerts, colIndex) => (
-                            <div key={colIndex} className="grid gap-1.5">
-                              {columnAlerts.map((alert) => {
-                                const text = alert.zh_title || alert.title || alert.ai_summary || '未命名预警'
-                                const isRed = alert.level === 'red'
-                                return (
-                                  <div
-                                    key={alert.id}
-                                    className={`flex items-start gap-2 rounded-md px-2 py-1 text-sm ${
-                                      isRed
-                                        ? 'bg-red-950/30 border border-red-900/30'
-                                        : 'bg-amber-950/20 border border-amber-900/20'
-                                    }`}
-                                  >
-                                    <AlertTriangle className={`w-3 h-3 mt-0.5 flex-shrink-0 ${isRed ? 'text-mentat-danger' : 'text-mentat-warning'}`} />
-                                    <span className="text-mentat-text-secondary leading-snug line-clamp-1 text-[12px]">
-                                      {text}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="text-[9px] text-mentat-muted-tertiary font-mono uppercase tracking-[0.08em] mt-1.5">
-                          total {totalAlerts} · critical {criticalShare} · density {alertDensity}
-                        </div>
-                        {(red + yellow > alerts.length) && (
-                          <p className="text-[10px] text-mentat-muted-tertiary mt-1">
-                            共 {red + yellow} 条预警，点击卡片继续阅读 →
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {!overviewExcerpt && alerts.length === 0 && (
-                      <p className="text-sm text-mentat-text-secondary">
-                        当日核心信号已压缩在本篇，点击查看完整报告。
-                      </p>
-                    )}
-                    <p className="text-[11px] text-mentat-muted-secondary mt-2">
-                      今日结论速览：{levelLabel(latest?.sentiment_level)}情绪，{totalAlerts} 条重点预警，覆盖 {topics || '--'} 个主题 / {sources || '--'} 个多源信号。
-                    </p>
-                  </div>
-
-                  {/* 右栏：情绪指数 + 数据矩阵 */}
-                  <div className="lg:col-span-4 p-3.5 sm:p-4 bg-black/20">
-                    {/* 情绪指数 */}
-                    <div className="rounded-lg bg-white/[0.03] p-3 mb-2.5">
-                      <div className="text-[9px] text-mentat-muted-tertiary font-mono uppercase tracking-wider mb-1">
-                        Sentiment Index
-                      </div>
-                      {latest.sentiment_score != null ? (
-                        <>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-[38px] font-bold font-mono leading-none" style={{ color }}>
-                              {latest.sentiment_score}
-                            </span>
-                            <span
-                              className="text-xs font-semibold px-1.5 py-0.5 rounded"
-                              style={{ color, backgroundColor: `${color}20` }}
-                            >
-                              {levelLabel(latest.sentiment_level)}
-                            </span>
-                          </div>
-                          {gaugePercent != null && (
-                            <div className="mt-2">
-                              <div
-                                className="h-2 rounded-full overflow-hidden relative"
-                                style={{
-                                  background:
-                                    'linear-gradient(to right, #4CAF50 0%, #4CAF50 35%, #C19A6B 35%, #C19A6B 68%, #D4A55A 68%, #D4A55A 88%, #8A5A36 88%, #8A5A36 100%)',
-                                }}
-                              >
-                                <div
-                                  className="absolute w-3 h-3 rounded-full bg-white shadow-lg transition-all duration-700"
-                                  style={{
-                                    left: `${gaugePercent}%`,
-                                    top: '50%',
-                                    transform: 'translateX(-50%) translateY(-50%)',
-                                    boxShadow: '0 0 0 2px #0b0d12',
-                                  }}
-                                />
-                              </div>
-                              <div className="flex justify-between text-[8px] text-mentat-muted-tertiary font-mono mt-1">
-                                <span>0 平静</span>
-                                <span>50 警戒</span>
-                                <span>100 危险</span>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-2xl font-mono text-mentat-muted-secondary">--</div>
-                      )}
-                    </div>
-
-                    {/* 关键数据矩阵 */}
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <FileText className="w-3 h-3 text-mentat-muted-secondary" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Signals</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-white leading-none">{items || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <AlertTriangle className="w-3 h-3 text-mentat-danger" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Red</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-mentat-danger leading-none">{red || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <Bell className="w-3 h-3 text-mentat-warning" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Yellow</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-mentat-warning leading-none">{yellow || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <Layers className="w-3 h-3 text-mentat-muted-secondary" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Topics</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-white leading-none">{topics || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <Layers className="w-3 h-3 text-mentat-muted-secondary" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Sources</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-white leading-none">{sources || '--'}</p>
-                      </div>
-                      <div className="rounded-md border border-mentat-border-card bg-black/30 px-2 py-1.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <AlertTriangle className="w-3 h-3 text-gold" />
-                          <span className="text-[9px] text-mentat-muted-tertiary font-mono uppercase">Alert%</span>
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-gold leading-none">{alertDensity}</p>
-                      </div>
-                    </div>
-
-                    {/* 覆盖范围标签 */}
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {coverageTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-0.5 rounded border border-mentat-border-weak bg-white/[0.02] text-[9px] uppercase tracking-[0.06em] text-mentat-muted-secondary font-mono"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-mentat-muted-tertiary mt-2">点击卡片查看完整报告与历史上下文</p>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card p-8 text-center">
-              <Sparkles className="w-8 h-8 text-gold mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-white mb-2">今日日报已生成</h3>
-              <p className="text-mentat-text-secondary text-sm max-w-sm mx-auto mb-5">
-                {isSignedIn
-                  ? '今日内容已就绪，点击下方进入报告页查看完整内容（含情绪、预警、新闻与策略）。'
-                  : '今日内容已就绪，登录后即可查看完整报告（含情绪、预警、新闻与策略）。'}
+              <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600 sm:text-base">
+                这是一个面向海外华人的美股与国际金融中文前瞻产品。我们把盘前风险、宏观驱动、美元与美债、科技股与主题板块压缩成一份更适合跨时区阅读的简报，帮助用户先建立判断，再进入完整研究。
               </p>
-              {isSignedIn ? (
-                <Link
-                  href={detailHref}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                >
-                  查看今日报告
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              ) : skipClerk ? (
-                <Link
-                  href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                >
-                  登录后查看今日报告
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              ) : (
-                <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                  >
-                    登录后查看今日报告
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </SignInButton>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* ===== 登录 CTA 横幅（未登录时展示） ===== */}
-      {!isSignedIn && (
-        <section className="border-b border-mentat-border-section bg-gradient-to-r from-[#181c26] via-[#12161e] to-[#0f1218]">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-white">
-                登录后即可查看完整日报与往期内容
-              </h3>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
-                {loginHighlights.map((item) => (
-                  <span key={item} className="text-[11px] text-mentat-text-secondary">
-                    · {item}
-                  </span>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/reports/latest" className="new-home-primary-btn">
+                  试读今日前瞻
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link href="/subscribe" className="new-home-secondary-btn">
+                  查看会员权益
+                </Link>
+              </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {heroBenefitCards.map((item) => (
+                  <article key={item.title} className="new-home-service-card !rounded-[24px] !p-5">
+                    <h3 className="text-base font-semibold text-slate-950">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                  </article>
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {skipClerk ? (
-                <Link
-                  href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
-                  className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
-                >
-                  立即登录查看
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              ) : (
-                <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-gold text-mentat-bg-page rounded-lg font-semibold text-sm hover:bg-gold-hover transition-colors inline-flex items-center gap-1.5"
-                  >
-                    立即登录查看
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </SignInButton>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* 三卖点 */}
-      <section className="border-t border-mentat-border-section py-10 bg-mentat-bg-page">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="核心价值" title="信息要全，也要快、准、好执行" />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
-            {valuePoints.map((item) => (
-              <InsightCard
-                key={item.title}
-                title={item.title}
-                description={item.description}
-                meta={item.meta}
-                points={item.points}
-                align="center"
-              />
+            <aside className="new-home-cta-panel !rounded-[32px]">
+              <p className="new-home-panel-kicker">How it fits your day</p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>
+                这份简报更像一个固定的盘前工作台。
+              </h2>
+              <div className="mt-6 space-y-4">
+                {heroSupportRows.map(({ title, description, icon: Icon }, index) => (
+                  <div
+                    key={title}
+                    className={`flex items-start gap-4 ${index > 0 ? 'border-t border-slate-200/80 pt-4' : ''}`}
+                  >
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-950/5 text-slate-800">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </div>
+
+          <div className="mt-8 new-home-terminal-card !rounded-[40px] !p-8">
+            {loading ? (
+              <div className="space-y-4">
+                <div className="new-report-skeleton h-16" />
+                <div className="grid gap-4 xl:grid-cols-[1.15fr_0.95fr_0.9fr]">
+                  <div className="new-report-skeleton h-[200px]" />
+                  <div className="new-report-skeleton h-[200px]" />
+                  <div className="new-report-skeleton h-[200px]" />
+                </div>
+              </div>
+            ) : loadError ? (
+              <div className="new-home-cta-panel !border-0 !bg-transparent !p-0 !shadow-none">
+                <p className="new-home-kicker">Daily brief</p>
+                <h2 className="mt-3 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>
+                  今日前瞻暂时不可用。
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  {loadError}
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link href="/reports" className="new-home-secondary-btn">
+                    查看历史简报
+                  </Link>
+                  <Link href="/subscribe" className="new-home-ghost-btn">
+                    查看会员权益
+                  </Link>
+                </div>
+              </div>
+            ) : latest ? (
+              <>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="new-home-panel-kicker">Today briefing</p>
+                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl" style={{ fontFamily: 'var(--font-display)' }}>
+                      {latest.title || `${latest.report_date} 美股与国际金融前瞻`}
+                    </h2>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {timeContext ? (
+                      <>
+                        <div className="new-report-data-pill">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          ET {timeContext.et}
+                        </div>
+                        <div className="new-report-data-pill">
+                          <Globe2 className="h-3.5 w-3.5" />
+                          {timeContext.localLabel} {timeContext.local}
+                        </div>
+                      </>
+                    ) : null}
+                    <div className={`new-report-level-chip ${latest.sentiment_level ? `new-report-level-${latest.sentiment_level === 'danger' ? 'danger' : latest.sentiment_level === 'alert' ? 'alert' : latest.sentiment_level === 'watch' ? 'watch' : 'calm'}` : 'new-report-level-calm'}`}>
+                      {levelLabel(latest.sentiment_level)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 xl:grid-cols-[1.12fr_0.98fr_0.9fr]">
+                  <div className="new-report-feature-summary !h-full">
+                    <p className="new-home-panel-kicker">盘前结论</p>
+                    <p className="mt-4 text-sm leading-8 text-slate-700">
+                      {cut(overviewExcerpt, 220) || '先用一段压缩摘要完成盘前判断，再展开看驱动、风险和重点主题。'}
+                    </p>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      {['先判断方向', '再看驱动来源', '最后确认风险边界'].map((item) => (
+                        <span key={item} className="new-report-data-pill">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {heroMetrics.map(({ value, label, icon: Icon, tint }) => (
+                      <div key={label} className="new-home-pulse-card !p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm text-slate-500">{label}</span>
+                          <Icon className={`h-4 w-4 ${tint}`} />
+                        </div>
+                        <div className="mt-4 text-3xl font-semibold text-slate-950">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6">
+                    <p className="new-home-panel-kicker">先看这三项</p>
+                    <div className="mt-4 space-y-3">
+                      {previewFocus.map((item, index) => (
+                        <div
+                          key={`${item}-${index}`}
+                          className={`flex items-start gap-3 ${index > 0 ? 'border-t border-slate-200/70 pt-3' : ''}`}
+                        >
+                          <span className="mt-2 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-rose-400" />
+                          <p className="text-sm leading-7 text-slate-600">{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="new-home-cta-panel !border-0 !bg-transparent !p-0 !shadow-none">
+                <p className="new-home-kicker">Daily brief</p>
+                <h2 className="mt-3 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>
+                  当前还没有可展示的最新简报。
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  你可以先查看历史简报，或者稍后再回来获取当天更新。
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="new-home-section !pt-8" id="topics">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="new-home-section-head">
+            <div>
+              <p className="new-home-kicker">For overseas Chinese</p>
+              <h2 className="new-home-section-title" style={{ fontFamily: 'var(--font-display)' }}>
+                不只是中文金融站，而是更适合海外华人的跨时区研究输入。
+              </h2>
+            </div>
+            <p className="new-home-section-copy">
+              首页先讲清使用场景，而不是一上来堆栏目。用户需要知道这里为什么值得每天打开，以及它能不能真正节省自己的判断时间。
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {audienceCards.map(({ title, description, points, icon: Icon }) => (
+              <article key={title} className="new-home-service-card">
+                <div className="new-home-service-icon bg-slate-950/5 text-slate-800">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-6 text-xl font-semibold text-slate-950">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
+                <div className="mt-5 space-y-2 border-t border-slate-200/80 pt-4">
+                  {points.map((point) => (
+                    <p key={point} className="text-sm leading-6 text-slate-500">
+                      {point}
+                    </p>
+                  ))}
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 报告内容模块说明 */}
-      <section className="border-t border-mentat-border-section py-10 sm:py-12 bg-mentat-bg-page">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="报告内容" title="每天一份，固定包含这些模块" />
-          <div className="grid md:grid-cols-3 gap-4 items-stretch">
-            {reportModules.map((module) => {
-              return (
-                <InsightCard
-                  key={module.title}
-                  title={module.title}
-                  description={module.description}
-                  meta={module.meta}
-                  points={module.points}
-                  icon={module.icon}
-                />
-              )
-            })}
+      <section className="new-home-section new-home-section-contrast">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="new-home-insight-panel">
+              <p className="new-home-kicker">What we track</p>
+              <h2 className="new-home-section-title text-white" style={{ fontFamily: 'var(--font-display)' }}>
+                我们聚焦美股和国际金融的关键驱动，不做泛市场铺量。
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
+                产品主线应该清楚告诉用户：这里看的是利率、美元、美债、科技股和全球风险事件如何共同影响美股，而不是把各种新闻拼在一起。
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {trackingTopics.map((item) => (
+                  <span key={item} className="new-home-topic-chip">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {trackingCards.map((item) => (
+                <article key={item.step} className="new-home-flow-card">
+                  <span className="new-home-flow-step">{item.step}</span>
+                  <h3 className="mt-5 text-lg font-semibold text-slate-950">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 使用方式 */}
-      <section id="pricing" className="border-t border-mentat-border-section py-10 sm:py-12 bg-mentat-bg-page">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader eyebrow="使用方式" title="简单三步，快速阅读日报" />
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card p-5 flex flex-col">
-              <div className="text-[10px] text-mentat-muted-secondary font-mono uppercase tracking-[0.12em] mb-2">step 1</div>
-              <h3 className="text-sm font-semibold text-mentat-text mb-2">先看今日重点</h3>
-              <p className="text-xs text-mentat-text-secondary mb-3 flex-1">首页首屏直接看到情绪、预警与摘要，先把当天重点抓住。</p>
-              <ul className="text-[11px] text-mentat-muted-secondary space-y-1 mb-4">
-                <li>· 今日摘要</li>
-                <li>· 预警速览</li>
-              </ul>
-              <div className="text-xs text-mentat-muted-tertiary mt-auto">打开即可阅读</div>
+      <section className="new-home-section">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="new-home-section-head">
+            <div>
+              <p className="new-home-kicker">Weekly radar</p>
+              <h2 className="new-home-section-title" style={{ fontFamily: 'var(--font-display)' }}>
+                用一套连续的观察框架，代替碎片化的每周提醒。
+              </h2>
             </div>
-            <div className="rounded-xl border-2 border-gold bg-mentat-bg-elevated p-5 flex flex-col relative">
-              <div className="absolute -top-px right-4 px-2 py-0.5 rounded-b-md bg-gold text-[10px] font-semibold text-mentat-bg-page uppercase tracking-wider">推荐</div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.12em] mb-2 text-[#9FB9E5]">step 2</div>
-              <h3 className="text-sm font-semibold text-white mb-2">
-                {isSignedIn ? '查看完整日报' : '登录后继续阅读'}
-              </h3>
-              <p className="text-xs text-mentat-text-secondary mb-3 flex-1">
-                {isSignedIn
-                  ? '你已登录，可直接打开完整模块与历史报告。'
-                  : '只需登录即可查看完整模块，不用额外操作。'}
-              </p>
-              <ul className="text-[11px] text-mentat-text-secondary space-y-1 mb-4">
-                <li>· 完整日报模块</li>
-                <li>· 历史报告回看</li>
-              </ul>
-              <div className="mt-auto">
-                {isSignedIn ? (
-                  <Link
-                    href={detailHref}
-                    className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
+            <p className="new-home-section-copy">
+              这一块不再做四张零碎的小卡，而是更清楚地告诉用户：一周里应该先看什么、再看什么、最后确认什么。
+            </p>
+          </div>
+
+          <div className="mt-10 new-home-cta-panel !rounded-[38px]">
+            <div className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+              <div className="space-y-2">
+                {weeklyFocusRows.map((item, index) => (
+                  <article
+                    key={item.title}
+                    className={`grid gap-4 py-4 sm:grid-cols-[88px_minmax(0,1fr)] ${index > 0 ? 'border-t border-slate-200/80' : ''}`}
                   >
-                    查看今日报告
+                    <div>
+                      <span className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-white">
+                        {item.label}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-950">{item.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="rounded-[30px] border border-slate-900/10 bg-[linear-gradient(180deg,#0f172a_0%,#172554_100%)] p-8 text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">Tracking set</p>
+                <h3 className="mt-4 text-2xl font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+                  这周真正要盯住的，不是消息数量，而是三条主线有没有继续发酵。
+                </h3>
+                <p className="mt-4 text-sm leading-7 text-slate-300">
+                  每日简报会围绕这些主线持续更新，让用户知道市场是在延续旧逻辑，还是已经切换到新的风险定价阶段。
+                </p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {trackingTopics.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-white/12 bg-white/8 px-3 py-2 text-sm text-slate-200"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="new-home-section !pt-0">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="new-home-cta-panel">
+              <p className="new-home-kicker">Report sample</p>
+              <h2 className="mt-3 text-3xl font-semibold text-slate-950 sm:text-4xl" style={{ fontFamily: 'var(--font-display)' }}>
+                一份简报先给结论，再展开驱动、风险和重点板块。
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-600">
+                首页不需要展示全部内容，但要让用户知道进到报告后会读到什么。真正的价值不是“有很多模块”，而是“模块排列顺序能帮助用户更快形成判断”。
+              </p>
+              <div className="mt-6 new-report-feature-summary">
+                <p className="new-home-panel-kicker">Preview excerpt</p>
+                <p className="mt-3 text-sm leading-8 text-slate-700">
+                  {cut(overviewExcerpt, 220) || '完整简报会先压缩成一段盘前摘要，再展开风险温度、市场快照、重点驱动、板块观察和后续需要跟踪的风险点。'}
+                </p>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/reports/latest" className="new-home-primary-btn">
+                  打开今日简报
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link href="/reports" className="new-home-ghost-btn">
+                  查看历史简报
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {reportModules.map((item) => (
+                <article key={item.title} className="new-home-service-card !p-6">
+                  <h3 className="text-lg font-semibold text-slate-950">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="new-home-section" id="pricing">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="new-home-section-head">
+            <div>
+              <p className="new-home-kicker">Membership</p>
+              <h2 className="new-home-section-title" style={{ fontFamily: 'var(--font-display)' }}>
+                先试读，再决定是否把它变成每天固定打开的一份研究输入。
+              </h2>
+            </div>
+            <p className="new-home-section-copy">
+              订阅页的重点不只是价格，而是清楚解释免费能看什么、付费能解锁什么，以及这类内容适合什么样的用户。
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-2">
+            {membershipCards.map((item) => (
+              <article
+                key={item.title}
+                className={`new-home-service-card !rounded-[32px] !p-8 ${
+                  item.accent === 'featured'
+                    ? 'border-slate-900/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(238,242,255,0.92))]'
+                    : ''
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{item.title}</p>
+                    <h3 className="mt-3 text-3xl font-semibold text-slate-950">{item.price}</h3>
+                  </div>
+                  {item.accent === 'featured' ? (
+                    <span className="new-report-level-chip new-report-level-watch">核心方案</span>
+                  ) : null}
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-600">{item.description}</p>
+                <div className="mt-6 space-y-3 border-t border-slate-200/80 pt-5">
+                  {item.points.map((point) => (
+                    <div key={point} className="flex items-start gap-3 text-sm leading-6 text-slate-600">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 new-home-cta-panel">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="new-home-kicker">Current rollout</p>
+                <h3 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'var(--font-display)' }}>
+                  订阅流程正在持续完善，当前可以先登录试读并查看报告结构。
+                </h3>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/subscribe" className="new-home-secondary-btn">
+                  打开会员页
+                </Link>
+                {isSignedIn ? (
+                  <Link href="/reports/latest" className="new-home-primary-btn">
+                    查看今日简报
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : skipClerk ? (
-                  <Link
-                    href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`}
-                    className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                  >
-                    去登录查看
+                  <Link href={`/sign-in?redirect_url=${encodeURIComponent(afterSignInUrl)}`} className="new-home-primary-btn">
+                    登录试读
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
                   <SignInButton mode="modal" forceRedirectUrl={afterSignInUrl}>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gold text-mentat-bg-page rounded-lg text-sm font-semibold hover:bg-gold-hover transition-colors"
-                    >
-                      去登录查看
+                    <button type="button" className="new-home-primary-btn">
+                      登录试读
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                   </SignInButton>
                 )}
               </div>
             </div>
-            <div className="rounded-xl border border-mentat-border-card bg-mentat-bg-card p-5 flex flex-col opacity-95">
-              <div className="text-[10px] text-mentat-text font-mono uppercase tracking-[0.12em] mb-2" style={{ color: '#9B8DC4' }}>step 3</div>
-              <h3 className="text-sm font-semibold text-mentat-text mb-2">按需回看历史</h3>
-              <p className="text-xs text-mentat-text-secondary mb-3 flex-1">在历史报告中按日期快速回看，和今天的判断形成对照。</p>
-              <ul className="text-[11px] text-mentat-muted-secondary space-y-1 mb-4">
-                <li>· 列表与日历视图</li>
-                <li>· 重点信号对比</li>
-              </ul>
-              <div className="mt-auto">
-                <Link
-                  href="/reports"
-                  className="inline-flex items-center justify-center w-full px-4 py-2 border border-mentat-border text-mentat-text rounded-lg text-sm hover:bg-mentat-bg-page transition-colors"
-                >
-                  查看历史报告
-                </Link>
-              </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="new-home-section !pt-0" id="method">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="new-home-section-head">
+            <div>
+              <p className="new-home-kicker">Method</p>
+              <h2 className="new-home-section-title" style={{ fontFamily: 'var(--font-display)' }}>
+                这是一份市场前瞻与风险提示，不是喊单站。
+              </h2>
             </div>
+            <p className="new-home-section-copy">
+              对金融咨询类产品来说，信任建立不能只放在页脚。方法说明、输出边界和风险提示应该是首页就能看到的一部分。
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {methodCards.map((item, index) => (
+              <article key={item.title} className="new-home-service-card">
+                <div className="new-home-service-icon bg-slate-950/5 text-slate-800">
+                  {index === 0 ? <BriefcaseBusiness className="h-5 w-5" /> : index === 1 ? <Sparkles className="h-5 w-5" /> : <CircleAlert className="h-5 w-5" />}
+                </div>
+                <h3 className="mt-6 text-xl font-semibold text-slate-950">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>

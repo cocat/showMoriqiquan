@@ -1,6 +1,7 @@
 """
 moriqiquanHtml 后端入口 - FastAPI
 """
+import logging
 import os
 import re
 from pathlib import Path
@@ -11,8 +12,10 @@ load_dotenv(_backend_dir.parent / ".env", override=True)   # 项目根 .env
 load_dotenv(_backend_dir / ".env", override=True)          # backend/.env 可覆盖
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from sqlalchemy.exc import DBAPIError, OperationalError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -20,6 +23,8 @@ from starlette.responses import Response
 from routes import reports, health, users, payments, auth
 from database import ensure_performance_indexes, ensure_auth_columns, engine
 from attribution import ensure_attribution_tables
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="moriqiquanHtml API",
@@ -91,6 +96,42 @@ app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
+
+@app.exception_handler(OperationalError)
+async def handle_operational_error(request: Request, exc: OperationalError):
+    return _database_error_response(request, exc)
+
+
+@app.exception_handler(DBAPIError)
+async def handle_dbapi_error(request: Request, exc: DBAPIError):
+    return _database_error_response(request, exc)
+
+
+def _database_error_response(request: Request, exc: Exception):
+    raw_message = str(getattr(exc, "orig", exc) or exc)
+    lowered = raw_message.lower()
+    detail = "Database temporarily unavailable. Please retry later."
+    error = "db_unavailable"
+
+    if "could not translate host name" in lowered or "nodename nor servname provided" in lowered or "name or service not known" in lowered:
+        detail = "Database host could not be resolved. Check DATABASE_URL or DNS."
+        error = "db_host_unresolved"
+    elif "connection timed out" in lowered or "timeout expired" in lowered:
+        detail = "Database connection timed out. Check network access to the database."
+        error = "db_timeout"
+    elif "connection refused" in lowered:
+        detail = "Database connection was refused. Check whether the database is reachable."
+        error = "db_connection_refused"
+
+    logger.exception("Database request failed on %s %s: %s", request.method, request.url.path, raw_message)
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": detail,
+            "error": error,
+        },
+    )
 
 
 @app.on_event("startup")

@@ -12,7 +12,21 @@ export function formatApiErrorForUser(error: unknown, fallback: string): string 
 
   const code = m[1]
   const detail = m[2]?.trim()
-  if (detail) return detail
+  if (detail) {
+    if (/database host could not be resolved/i.test(detail)) {
+      return '数据库地址无法解析，请检查 DATABASE_URL 或本机 DNS 配置。'
+    }
+    if (/database connection timed out/i.test(detail)) {
+      return '数据库连接超时，请检查当前网络或数据库白名单配置。'
+    }
+    if (/database connection was refused/i.test(detail)) {
+      return '数据库连接被拒绝，请确认数据库实例可访问。'
+    }
+    if (/database temporarily unavailable/i.test(detail)) {
+      return '数据库暂时不可用，请稍后再试。'
+    }
+    return detail
+  }
 
   switch (code) {
     case '401':

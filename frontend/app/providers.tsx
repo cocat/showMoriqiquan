@@ -9,7 +9,7 @@ import { isLikelyExpiredJwt } from '@/lib/session-token'
 const APP_TOKEN_STORAGE_KEY = 'mv_app_token'
 const APP_USER_STORAGE_KEY = 'mv_app_user'
 
-type AppAuthProvider = 'none' | 'phone' | 'clerk'
+type AppAuthProvider = 'none' | 'phone' | 'clerk' | 'skip'
 type CnLoginMode = 'sms' | 'wechat'
 type CnLoginIntent = 'login' | 'link'
 
@@ -84,8 +84,9 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
 
   const value: AppAuthValue = {
     isLoaded: true,
-    isSignedIn: !!appToken,
-    authProvider: appToken ? 'phone' : 'none',
+    // 与后端 SKIP_CLERK 一致：无 token 也视为已授权，避免仍出现「登录」入口和部分页面不拉数
+    isSignedIn: true,
+    authProvider: appToken ? 'phone' : 'skip',
     getToken: async (_opts?: { skipCache?: boolean }) => {
       if (appToken && isLikelyExpiredJwt(appToken)) {
         persistAppSession(null, null)
@@ -99,7 +100,7 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
     },
     exchangeExternalToken: async () => undefined,
     startCnLogin: () => undefined,
-    user: appUser,
+    user: appUser ?? { firstName: '本地用户', emailAddresses: [] },
   }
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>

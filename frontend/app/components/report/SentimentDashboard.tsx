@@ -29,8 +29,8 @@ export function SentimentDashboard({ data }: { data: SentimentData }) {
     <section id="sentiment" className="sentiment-dashboard scroll-mt-28 xl:scroll-mt-20">
       <div className="sentiment-top">
         <div className="sentiment-left">
-          <div className="sentiment-title">市场情绪指数</div>
-          <div className="sentiment-desc">{data.description ?? '暂无描述'}</div>
+          <div className="sentiment-title">市场风险温度</div>
+          <div className="sentiment-desc">{data.description ?? '先看今天的风险温度落在哪个区间，再决定后面的阅读和验证重点。'}</div>
         </div>
         <div className="sentiment-right">
           <div className={`sentiment-score ${scoreClass}`}>

@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 interface AlertItem {
   id: number
   level: string
@@ -17,155 +19,158 @@ interface AlertItem {
   assets?: string[] | { name?: string }[]
 }
 
+function alertTone(level: string) {
+  return level.toLowerCase() === 'red'
+    ? {
+        pill: 'bg-rose-100 text-rose-700',
+        card: 'border-rose-200 bg-rose-50/70',
+      }
+    : {
+        pill: 'bg-amber-100 text-amber-700',
+        card: 'border-amber-200 bg-amber-50/70',
+      }
+}
+
 export function AlertsList({ items }: { items: AlertItem[] }) {
-  const redItems = items.filter((i) => (i.level || '').toLowerCase() === 'red')
-  const yellowItems = items.filter((i) => (i.level || '').toLowerCase() === 'yellow')
+  const redItems = items.filter((item) => (item.level || '').toLowerCase() === 'red')
+  const yellowItems = items.filter((item) => (item.level || '').toLowerCase() === 'yellow')
+  const [openId, setOpenId] = useState<number | null>(() => redItems[0]?.id ?? yellowItems[0]?.id ?? null)
 
-  const renderAlert = (item: AlertItem) => {
-    const isRed = (item.level || '').toLowerCase() === 'red'
-    const levelClass = isRed ? 'level-red' : 'level-yellow'
-    const badgeClass = isRed ? 'level-red' : 'level-yellow'
-
-    const assetChips = Array.isArray(item.assets)
-      ? item.assets.map((a) => (typeof a === 'string' ? a : a?.name)).filter(Boolean)
-      : []
-
-    return (
-      <div key={item.id} className={`alert-item ${levelClass}`}>
-        <div className="alert-top">
-          <div className={`score-badge ${badgeClass}`}>
-            <span className="score-num">{item.score ?? 0}</span>
-            <span className="score-sub">分</span>
-          </div>
-          <div className="alert-main">
-            <div className="alert-title">
-              {item.topic_name && (
-                <span className="alert-topic-tag">{item.topic_name}</span>
-              )}
-              {item.zh_title ?? item.title}
-            </div>
-          </div>
-        </div>
-
-        {item.zh_title && item.zh_title !== item.title && (
-          <div className="zh-trans">{item.zh_title}</div>
-        )}
-
-        <div className="alert-meta">
-          {item.source_name && <span>{item.source_name}</span>}
-          {item.published_at && <span>{new Date(item.published_at).toLocaleString('zh-CN')}</span>}
-        </div>
-
-        {item.ai_summary && (
-          <div className="ai-box">
-            <div className="ai-box-label">AI 深度解读</div>
-            <div className="summary-text">{item.ai_summary}</div>
-            {item.ai_summary_en && (
-              <div className="en-text" style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginTop: 8, padding: '8px 12px', background: 'var(--ghost)', borderLeft: '3px solid var(--border)', lineHeight: 1.55 }}>
-                {item.ai_summary_en}
-              </div>
-            )}
-            {assetChips.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>相关标的</span>
-                {assetChips.map((name, j) => (
-                  <span key={j} className="asset-chip" style={{ padding: '3px 8px', borderRadius: 2, fontSize: 11, fontWeight: 600, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid var(--blue)' }}>
-                    {name}
-                  </span>
-                ))}
-              </div>
-            )}
-            {item.direction && (
-              <div
-                className={`dir-bar ${item.direction === 'bullish' ? 'bullish' : item.direction === 'bearish' ? 'bearish' : 'neutral'}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginTop: 8,
-                  padding: '8px 12px',
-                  fontSize: 13,
-                  background: item.direction === 'bullish' ? 'var(--green-light)' : item.direction === 'bearish' ? 'var(--burgundy-dim)' : 'var(--ghost)',
-                  color: item.direction === 'bullish' ? 'var(--green)' : item.direction === 'bearish' ? '#ff6b6b' : 'var(--muted)',
-                  border: '1px solid',
-                  borderColor: item.direction === 'bullish' ? 'var(--green-border)' : item.direction === 'bearish' ? 'var(--burgundy-light)' : 'var(--border)',
-                  borderLeft: '3px solid',
-                  borderLeftColor: item.direction === 'bullish' ? 'var(--green)' : item.direction === 'bearish' ? 'var(--burgundy)' : 'var(--border)',
-                }}
-              >
-                <span style={{ padding: '3px 8px', borderRadius: 2, fontSize: 10, fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>
-                  {item.direction === 'bullish' ? '利多' : item.direction === 'bearish' ? '利空' : '中性'}
-                </span>
-                {item.direction_note && <span>{item.direction_note}</span>}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="alert-footer">
-          {item.link && (
-            <a className="alert-link primary" href={item.link} target="_blank" rel="noopener noreferrer">
-              原文链接
-            </a>
-          )}
-        </div>
+  const renderGroup = (groupTitle: string, groupItems: AlertItem[]) => (
+    <div className="mt-6">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+          {groupTitle}
+        </span>
+        <span className="text-sm text-slate-400">{groupItems.length} 条</span>
       </div>
-    )
-  }
+
+      <div className="space-y-3">
+        {groupItems.map((item) => {
+          const tone = alertTone(item.level || '')
+          const assetChips = Array.isArray(item.assets)
+            ? item.assets.map((asset) => (typeof asset === 'string' ? asset : asset?.name)).filter(Boolean)
+            : []
+          const isOpen = openId === item.id
+
+          return (
+            <article
+              key={item.id}
+              className={`rounded-[26px] border px-5 py-4 shadow-[0_20px_36px_-34px_rgba(15,23,42,0.16)] ${tone.card}`}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenId((current) => (current === item.id ? null : item.id))}
+                className="w-full text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`inline-flex min-w-[64px] flex-col items-center rounded-[18px] px-3 py-3 ${tone.pill}`}>
+                    <strong className="text-2xl font-light leading-none">{item.score ?? 0}</strong>
+                    <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">风险分</span>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {item.topic_name ? (
+                        <span className="inline-flex rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[11px] font-semibold text-slate-500">
+                          {item.topic_name}
+                        </span>
+                      ) : null}
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        {(item.level || '').toLowerCase() === 'red' ? '高优先级风险' : '继续跟踪线索'}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-semibold leading-7 text-slate-950">
+                      {item.zh_title ?? item.title}
+                    </h3>
+
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      {item.direction_note || item.ai_summary || '点击展开查看这条风险的解释、验证点和相关资产。'}
+                    </p>
+                  </div>
+
+                  <span className="pt-1 text-sm text-slate-400">{isOpen ? '−' : '+'}</span>
+                </div>
+              </button>
+
+              {isOpen ? (
+                <div className="mt-5 border-t border-white/70 pt-5">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.08fr)_minmax(240px,0.92fr)]">
+                    <div className="rounded-[20px] border border-white/80 bg-white/85 px-4 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">为什么需要在意</p>
+                      <p className="mt-3 text-sm leading-8 text-slate-700">
+                        {item.ai_summary || item.direction_note || '这条信号值得继续跟踪，因为它可能改变今天的风险偏好与板块定价。'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/85 px-4 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">来源与验证</p>
+                      <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
+                        {item.source_name ? <p>来源：{item.source_name}</p> : null}
+                        {item.published_at ? <p>时间：{new Date(item.published_at).toLocaleString('zh-CN')}</p> : null}
+                        {item.direction_note ? <p>{item.direction_note}</p> : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {assetChips.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {assetChips.map((name, index) => (
+                        <span
+                          key={`${name}-${index}`}
+                          className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {item.link ? (
+                    <div className="mt-4">
+                      <a
+                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        查看原始消息
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   return (
     <section id="alerts" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="report-card">
-        {redItems.length > 0 && (
-          <>
-            <div className="alerts-section-header red-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--burgundy-dim)', color: '#ff6b6b' }}>
-              重大预警
-              <span className="section-count">{redItems.length} 条</span>
-            </div>
-            <div className="alerts-body-inner" style={{ padding: '10px 14px' }}>
-              {redItems.map(renderAlert)}
-            </div>
-          </>
-        )}
-        {yellowItems.length > 0 && (
-          <>
-            <div className="alerts-section-header yellow-hdr" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', background: 'var(--orange-light)', color: 'var(--gold)' }}>
-              重要提示
-              <span className="section-count">{yellowItems.length} 条</span>
-            </div>
-            <div className="alerts-body-inner" style={{ padding: '10px 14px' }}>
-              {yellowItems.map(renderAlert)}
-            </div>
-          </>
-        )}
-        {items.length === 0 && (
-          <>
-            <div
-              className="alerts-section-header"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 20px',
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-                background: 'var(--ghost)',
-                color: 'var(--muted)',
-              }}
-            >
-              核心预警
-              <span className="section-count">0 条</span>
-            </div>
-            <div
-              className="empty-alerts"
-              style={{ textAlign: 'center', padding: '32px 20px', color: 'var(--faint)', fontSize: 14 }}
-            >
-              今日暂无预警，市场相对平静
-            </div>
-          </>
-        )}
+      <div className="new-home-cta-panel !rounded-[34px]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="new-home-kicker">Risk watch</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              风险观察清单
+            </h2>
+          </div>
+          <p className="max-w-2xl text-sm leading-7 text-slate-500">
+            改成折叠式观察卡，先快速扫一遍今天有哪些风险，再按需展开重点项。
+          </p>
+        </div>
+
+        {redItems.length > 0 ? renderGroup('先确认的高优先级风险', redItems) : null}
+        {yellowItems.length > 0 ? renderGroup('继续跟踪的次级线索', yellowItems) : null}
+
+        {items.length === 0 ? (
+          <div className="mt-6 rounded-[24px] border border-slate-200/80 bg-white/80 px-5 py-8 text-center text-sm text-slate-500">
+            今日暂无需要特别升级的风险点，重点看主题轮动和资产联动。
+          </div>
+        ) : null}
       </div>
     </section>
   )

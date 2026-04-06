@@ -8,8 +8,15 @@
 """
 import os
 import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 def main():
+    backend_dir = Path(__file__).resolve().parent
+    load_dotenv(backend_dir.parent / ".env", override=True)
+    load_dotenv(backend_dir / ".env", override=True)
+
     database_url = os.getenv("DATABASE_URL", "sqlite:///./test.db")
     # 隐藏密码，只显示用于提示的 URL
     if "@" in database_url and "://" in database_url:

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface BriefItem {
   topic_name?: string
@@ -10,86 +11,178 @@ interface BriefItem {
   sources?: Array<{ url: string; title: string }>
 }
 
+function buildValidationHint(item: BriefItem) {
+  const raw = [item.topic_name, item.body, item.impact].filter(Boolean).join(' ').toLowerCase()
+
+  if (/(fomc|fed|联储|利率|美债|收益率|cpi|通胀|非农|就业)/i.test(raw)) {
+    return '先看美债收益率、纳指期货和美元是否同时给出反馈。'
+  }
+  if (/(美元|汇率|dollar|fx)/i.test(raw)) {
+    return '先盯美元方向，再确认黄金和风险资产有没有反向变化。'
+  }
+  if (/(oil|原油|油价|地缘|战争|中东)/i.test(raw)) {
+    return '先看油价与避险资产是否共振，而不是只看 headline。'
+  }
+  if (/(earnings|财报|指引|guidance)/i.test(raw)) {
+    return '先确认盘前指引，再看同板块龙头是否一起被重定价。'
+  }
+  if (/(科技|ai|半导体|芯片|software|cloud)/i.test(raw)) {
+    return '先盯科技龙头和主题 ETF，确认热度是否真正扩散。'
+  }
+
+  return '先看利率、美元和龙头股是否给出一致验证。'
+}
+
+function shortText(text?: string | null, max = 72) {
+  if (!text) return ''
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  return `${clean.slice(0, max).trim()}…`
+}
+
 export function NewsBriefs({ items }: { items: BriefItem[] }) {
-  const [openIdx, setOpenIdx] = useState<number | null>(0)
-  const [showSources, setShowSources] = useState<Record<number, boolean>>({})
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const activeItem = items[activeIndex] ?? items[0]
+  const total = items.length
+
+  const goPrev = () => setActiveIndex((current) => (current === 0 ? total - 1 : current - 1))
+  const goNext = () => setActiveIndex((current) => (current === total - 1 ? 0 : current + 1))
 
   return (
     <section id="briefs" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="report-card">
-        <div className="report-card-header gold">新闻简报</div>
-        <div style={{ padding: '14px 16px 10px' }}>
-          {items.map((item, i) => {
-            const isOpen = openIdx === i
-            const sources = item.sources ?? []
-            const hasImpact = !!item.impact
+      <div className="new-home-cta-panel !rounded-[34px]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="new-home-kicker">News translation</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              新闻翻译台
+            </h2>
+          </div>
+          <p className="max-w-2xl text-sm leading-7 text-slate-500">
+            当前展示的类目不是前端写死的，而是当天摘要数据里返回的 `topic_name`，会随当天主线变化。
+          </p>
+        </div>
 
-            return (
-              <div key={i} className="brief-card">
-                <div
-                  className="brief-header"
-                  onClick={() => setOpenIdx(isOpen ? null : i)}
-                >
-                  <div className="brief-header-left">
-                    <span className="brief-topic">{item.topic_name ?? '简报'}</span>
-                    {item.source_count != null && (
-                      <span className="brief-count">{item.source_count} 条</span>
-                    )}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      width: 24,
-                      height: 24,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '50%',
-                      background: 'transparent',
-                      border: '1px solid transparent',
-                      color: 'var(--muted)',
-                      transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {isOpen ? '▼' : '▶'}
-                  </span>
+        <div className="mt-6 grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            {items.map((item, index) => (
+              <button
+                key={`${item.topic_name || 'brief'}-${index}`}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`rounded-[24px] border px-4 py-4 text-left transition ${
+                  activeIndex === index
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-[0_24px_44px_-36px_rgba(15,23,42,0.45)]'
+                    : 'border-slate-200/80 bg-white/75 text-slate-900 hover:border-slate-300 hover:bg-white'
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${activeIndex === index ? 'text-amber-200/90' : 'text-slate-400'}`}>
+                    {String(index + 1).padStart(2, '0')}
+                  </p>
+                  {item.source_count != null ? (
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${activeIndex === index ? 'bg-white/10 text-amber-100' : 'border border-amber-200 bg-amber-50 text-amber-700'}`}>
+                      {item.source_count} 条
+                    </span>
+                  ) : null}
                 </div>
-                {isOpen && (
-                  <div>
-                    {item.body && <div className="brief-body">{item.body}</div>}
-                    {hasImpact && <div className="brief-impact">{item.impact}</div>}
-                    {sources.length > 0 && (
-                      <>
-                        <div
-                          className="brief-src-toggle"
-                          style={{ padding: '8px 18px', background: 'var(--ghost)', fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}
-                          onClick={() => setShowSources((s) => ({ ...s, [i]: !s[i] }))}
-                        >
-                          {showSources[i] ? '▼ 收起来源' : `▶ 原始来源（${sources.length} 条）`}
-                        </div>
-                        {showSources[i] && (
-                          <div className="brief-sources">
-                            {sources.map((s, j) => (
-                              <a
-                                key={j}
-                                className="brief-src-link"
-                                href={s.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {s.title || s.url}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                <h3 className="mt-3 text-sm font-semibold leading-6">{item.topic_name ?? '新闻翻译'}</h3>
+                <p className={`mt-3 text-sm leading-7 ${activeIndex === index ? 'text-slate-300' : 'text-slate-500'}`}>
+                  {shortText(item.impact || item.body, 72) || '查看这条消息的市场翻译与验证重点。'}
+                </p>
+              </button>
+            ))}
+          </aside>
+
+          {activeItem ? (
+            <article className="rounded-[32px] border border-slate-200/80 bg-white/92 px-5 py-5 shadow-[0_28px_48px_-36px_rgba(15,23,42,0.24)] sm:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Translation card</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{activeItem.topic_name ?? '新闻翻译'}</h3>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {activeItem.source_count != null ? (
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                      {activeItem.source_count} 条来源
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                    aria-label="Previous brief"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                    aria-label="Next brief"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            )
-          })}
+
+              <div className="mt-5 rounded-[26px] border border-rose-200/70 bg-rose-50/90 px-5 py-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-500">市场真正交易什么</p>
+                <p className="mt-3 text-sm leading-8 text-rose-700">
+                  {activeItem.impact || '这条消息真正重要的地方，在于它是否改变了资金对利率、美元或板块预期的判断。'}
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/90 px-5 py-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">发生了什么</p>
+                  <p className="mt-3 text-sm leading-8 text-slate-700">
+                    {activeItem.body || '原始新闻背景暂未补充。'}
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-sky-200/70 bg-white px-5 py-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">今天先验证</p>
+                  <p className="mt-3 text-sm leading-8 text-slate-600">
+                    {buildValidationHint(activeItem)}
+                  </p>
+                </div>
+              </div>
+
+              {activeItem.sources && activeItem.sources.length > 0 ? (
+                <div className="mt-4 rounded-[22px] border border-slate-200/70 bg-slate-50/75 px-5 py-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">原始来源</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {activeItem.sources.map((source, sourceIndex) => (
+                      <a
+                        key={`${source.url}-${sourceIndex}`}
+                        className="brief-src-link"
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {source.title || source.url}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-5 flex items-center justify-center gap-2">
+                {items.map((item, index) => (
+                  <button
+                    key={`${item.topic_name || 'dot'}-${index}`}
+                    type="button"
+                    onClick={() => setActiveIndex(index)}
+                    className={`h-2.5 rounded-full transition ${activeIndex === index ? 'w-8 bg-slate-900' : 'w-2.5 bg-slate-300 hover:bg-slate-400'}`}
+                    aria-label={`Go to brief ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </article>
+          ) : null}
         </div>
       </div>
     </section>

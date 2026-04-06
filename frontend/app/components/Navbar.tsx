@@ -7,6 +7,7 @@ import { TrendingUp, Menu, X, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAppAuth } from '@/app/providers'
 import { SignInButton } from '@clerk/nextjs'
+import { ModeSwitch } from './ModeSwitch'
 
 function NavLink({
   href,
@@ -40,7 +41,8 @@ function NavLink({
 export default function Navbar() {
   const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const pathname = usePathname()
-  const { isSignedIn, clearSession } = useAppAuth()
+  const { isSignedIn, clearSession, authProvider } = useAppAuth()
+  const showLogoutInSkipMode = authProvider === 'phone'
   const [mobileOpen, setMobileOpen] = useState(false)
   const [logoError, setLogoError] = useState(false)
   const [archiveNavigating, setArchiveNavigating] = useState(false)
@@ -49,7 +51,7 @@ export default function Navbar() {
     pathname.startsWith('/reports/') && pathname !== '/reports' && pathname !== '/reports/latest'
   const isLatestReport = pathname === '/reports/latest' || isReportDetail
   const isReports = pathname === '/reports'
-  const isPricing = pathname === '/pricing'
+  const isSubscribe = pathname === '/subscribe'
 
   useEffect(() => {
     setArchiveNavigating(false)
@@ -83,14 +85,14 @@ export default function Navbar() {
             </span>
             <span className="leading-tight">
               <span className="block text-sm font-semibold tracking-[0.01em] text-mentat-text">门塔特的视界</span>
-              <span className="block text-[10px] uppercase tracking-[0.22em] text-[#AFA08A]">MENTAT VISION</span>
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-[#AFA08A]">US EQUITY BRIEF</span>
             </span>
           </Link>
 
           {/* Desktop nav links */}
           <div className="hidden sm:flex items-center gap-1">
             <NavLink href="/reports/latest" active={isLatestReport}>
-              最新报告
+              今日前瞻
             </NavLink>
             <NavLink
               href="/reports"
@@ -104,11 +106,14 @@ export default function Navbar() {
                   打开中...
                 </span>
               ) : (
-                '历史报告'
+                '历史简报'
               )}
             </NavLink>
-            <NavLink href="/#pricing" active={isPricing}>
-              使用方式
+            <NavLink href="/#topics" active={false}>
+              专题追踪
+            </NavLink>
+            <NavLink href="/subscribe" active={isSubscribe}>
+              订阅会员
             </NavLink>
           </div>
 
@@ -117,6 +122,7 @@ export default function Navbar() {
 
           {/* Desktop auth CTA */}
           <div className="hidden sm:flex items-center gap-2">
+            <ModeSwitch />
             {isSignedIn ? (
               <>
                 <Link
@@ -125,13 +131,15 @@ export default function Navbar() {
                 >
                   个人中心
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => clearSession()}
-                  className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors border border-mentat-border"
-                >
-                  退出
-                </button>
+                {(!skipClerk || showLogoutInSkipMode) && (
+                  <button
+                    type="button"
+                    onClick={() => clearSession()}
+                    className="px-3 py-1.5 text-sm text-mentat-muted hover:text-mentat-text rounded transition-colors border border-mentat-border"
+                  >
+                    退出
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -164,7 +172,7 @@ export default function Navbar() {
                   href="/reports/latest"
                   className="px-4 py-1.5 bg-gold text-mentat-bg rounded font-semibold text-sm hover:bg-gold-hover transition-colors"
                 >
-                  查看今日
+                  试读今日
                 </Link>
               </>
             )}
@@ -184,12 +192,13 @@ export default function Navbar() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="sm:hidden border-t border-mentat-border px-4 py-3 space-y-1 bg-mentat-bg">
+          <ModeSwitch mobile onNavigate={() => setMobileOpen(false)} />
           <Link
             href="/reports/latest"
             className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
             onClick={() => setMobileOpen(false)}
           >
-            最新报告
+            今日前瞻
           </Link>
           <Link
             href="/reports"
@@ -209,15 +218,22 @@ export default function Navbar() {
                 打开中...
               </span>
             ) : (
-              '历史报告'
+              '历史简报'
             )}
           </Link>
           <Link
-            href="/#pricing"
+            href="/#topics"
             className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
             onClick={() => setMobileOpen(false)}
           >
-            使用方式
+            专题追踪
+          </Link>
+          <Link
+            href="/subscribe"
+            className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
+            onClick={() => setMobileOpen(false)}
+          >
+            订阅会员
           </Link>
           <div className="pt-2 border-t border-mentat-border-weak flex gap-2">
             {isSignedIn ? (
@@ -229,15 +245,17 @@ export default function Navbar() {
                 >
                   个人中心
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearSession().finally(() => setMobileOpen(false))
-                  }}
-                  className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
-                >
-                  退出
-                </button>
+                {(!skipClerk || showLogoutInSkipMode) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearSession().finally(() => setMobileOpen(false))
+                    }}
+                    className="flex-1 text-center px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text border border-mentat-border rounded transition-colors"
+                  >
+                    退出
+                  </button>
+                )}
               </>
             ) : (
               <>

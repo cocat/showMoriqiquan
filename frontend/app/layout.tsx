@@ -6,8 +6,8 @@ import { Providers } from './providers'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://mentat.hk'),
-  title: 'mentat vision - 市场情报日报',
-  description: 'mentat vision 市场情报日报展示系统 · 北京优斯莱斯科技有限公司',
+  title: 'Mentat Vision - 美股与国际金融中文前瞻',
+  description: '面向海外华人的美股与国际金融中文前瞻平台，聚焦盘前风险、宏观驱动、美元与美债、科技股与主题板块。',
 }
 
 export default function RootLayout({
@@ -22,9 +22,9 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
-        <footer className="border-t border-mentat-border py-4 text-center text-mentat-muted text-sm">
-          北京优斯莱斯科技有限公司 · mentat vision
-        </footer>
+          <footer className="border-t border-mentat-border/70 bg-[#111214] py-5 text-center text-mentat-muted text-sm">
+            北京优斯莱斯科技有限公司 · mentat vision
+          </footer>
         </Providers>
       </body>
     </html>

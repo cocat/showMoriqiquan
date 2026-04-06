@@ -11,8 +11,25 @@ function resolveApiUrlBase(): string {
   // SSR 仍使用配置地址，避免 Node 环境相对地址 fetch 报错
   if (typeof window === 'undefined') return API_URL_CONFIGURED
 
-  // 在 mentat.hk/www.mentat.hk 间统一走同源，避免跨域预检和重定向
+  // 局域网访问前端时，localhost 会指向访问设备本身而非开发机
+  // 若仍是默认 localhost:8000，则自动改为当前页面主机:8000
   const currentHost = window.location.hostname
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const configured = new URL(API_URL_CONFIGURED)
+      if (
+        (configured.hostname === 'localhost' || configured.hostname === '127.0.0.1') &&
+        currentHost !== 'localhost' &&
+        currentHost !== '127.0.0.1'
+      ) {
+        return `${configured.protocol}//${currentHost}:8000`
+      }
+    } catch {
+      // 配置异常时回退到原地址
+    }
+  }
+
+  // 在 mentat.hk/www.mentat.hk 间统一走同源，避免跨域预检和重定向
   if (currentHost === 'mentat.hk' || currentHost === 'www.mentat.hk') {
     try {
       const configuredHost = new URL(API_URL_CONFIGURED).hostname
@@ -157,7 +174,7 @@ export const reportsApi = {
           apiUrl(`/api/reports/?page=${page}&page_size=${pageSize}&scope=${scope}`),
           { headers: getHeaders(token) }
         )
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) await throwApiResponseError(res)
         return res.json()
       },
       REPORT_LIST_TTL,
@@ -171,7 +188,7 @@ export const reportsApi = {
         const res = await fetch(apiUrl(`/api/reports/${reportId}`), {
           headers: getHeaders(token),
         })
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) await throwApiResponseError(res)
         return res.json()
       },
       REPORT_TTL,
@@ -185,7 +202,7 @@ export const reportsApi = {
         const res = await fetch(apiUrl(`/api/reports/${reportId}/full`), {
           headers: getHeaders(token),
         })
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) await throwApiResponseError(res)
         return res.json()
       },
       REPORT_TTL,
@@ -199,7 +216,7 @@ export const reportsApi = {
         const res = await fetch(apiUrl(`/api/reports/date/${date}`), {
           headers: getHeaders(token),
         })
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) await throwApiResponseError(res)
         return res.json()
       },
       REPORT_TTL,
@@ -214,7 +231,7 @@ export const reportsApi = {
           apiUrl(`/api/reports/calendar?year=${year}&month=${month}`),
           { headers: getHeaders(token) }
         )
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) await throwApiResponseError(res)
         return res.json()
       },
       CALENDAR_TTL,
@@ -226,7 +243,7 @@ export const reportsApi = {
       const res = await fetch(apiUrl('/api/reports/latest/summary'), {
         headers: getHeaders(token),
       })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      if (!res.ok) await throwApiResponseError(res)
       const json = await res.json()
       return json.report != null ? json.report : json
     }, LATEST_SUMMARY_TTL, { bypassCache: opts?.forceRefresh }),
@@ -236,7 +253,7 @@ export const reportsApi = {
       const res = await fetch(apiUrl('/api/reports/latest/summary'), {
         headers: getHeaders(token),
       })
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      if (!res.ok) await throwApiResponseError(res)
       return res.json() as Promise<{ report?: unknown; overview_teaser?: string }>
     }, LATEST_SUMMARY_TTL, { bypassCache: opts?.forceRefresh }),
 }

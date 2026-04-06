@@ -16,8 +16,8 @@ export interface SnapshotItem {
   link?: string
 }
 
-function formatPrice(n: number) {
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+function formatPrice(value: number) {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
 export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
@@ -36,60 +36,72 @@ export function MarketSnapshot({ items }: { items: SnapshotItem[] }) {
 
   return (
     <section id="market" className="scroll-mt-28 xl:scroll-mt-20">
-      <div className="report-card">
-        <div className="report-card-header green">实时行情快照</div>
-        <div className="snap-grid">
+      <div className="new-home-cta-panel !rounded-[34px]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="new-home-kicker">Market validation</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              盘前市场快照
+            </h2>
+          </div>
+          <p className="max-w-2xl text-sm leading-7 text-slate-500">
+            用资产价格确认 headline 有没有真正落地。看利率、美元、指数和重点板块是否给出一致反应。
+          </p>
+        </div>
+
+        <div className="mt-6 space-y-5">
           {sortedGroups.map(([groupLabel, groupItems]) => (
             <Fragment key={groupLabel || 'default'}>
-              {groupLabel && (
-                <div className="snap-group-label">{groupLabel}</div>
-              )}
-              {groupItems.map((row, i) => {
-                const pct = row.pct_change ?? 0
-                const direction = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat'
-                const Card = row.link ? 'a' : 'div'
-                const cardProps = row.link
-                  ? { href: row.link, target: '_blank', rel: 'noopener noreferrer' }
-                  : {}
+              {groupLabel ? (
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{groupLabel}</p>
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              ) : null}
 
-                return (
-                  <Card
-                    key={row.symbol + i}
-                    className={`snap-card ${direction}`}
-                    {...cardProps}
-                  >
-                    <div className="snap-top">
-                      <span className="snap-sym">{row.symbol}</span>
-                    </div>
-                    <div className="snap-name" title={row.name ?? row.symbol}>
-                      {row.name ?? row.symbol}
-                    </div>
-                    <div className="snap-price-row">
-                      <span className="snap-price">
-                        {row.price != null ? formatPrice(row.price) : '-'}
-                      </span>
-                      <span
-                        className="snap-pct"
-                        style={{ color: pct >= 0 ? 'var(--green)' : '#ff6b6b' }}
-                      >
-                        {row.pct_change != null
-                          ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`
-                          : '-'}
-                      </span>
-                    </div>
-                    {row.change != null && (
-                      <div className="snap-change">
-                        {row.change > 0 ? '+' : ''}{row.change}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {groupItems.map((row, index) => {
+                  const pct = row.pct_change ?? 0
+                  const directionClass = pct > 0 ? 'border-emerald-200 bg-emerald-50/45' : pct < 0 ? 'border-rose-200 bg-rose-50/45' : 'border-slate-200 bg-slate-50/65'
+                  const pctClass = pct > 0 ? 'text-emerald-600' : pct < 0 ? 'text-rose-600' : 'text-slate-500'
+                  const Card = row.link ? 'a' : 'div'
+                  const cardProps = row.link ? { href: row.link, target: '_blank', rel: 'noopener noreferrer' } : {}
+
+                  return (
+                    <Card
+                      key={`${row.symbol}-${index}`}
+                      className={`rounded-[24px] border px-4 py-4 shadow-[0_22px_38px_-36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 ${directionClass}`}
+                      {...cardProps}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{row.symbol}</p>
+                          <h3 className="mt-2 text-sm font-semibold leading-6 text-slate-950">{row.name ?? row.symbol}</h3>
+                        </div>
+                        <span className={`text-sm font-semibold ${pctClass}`}>
+                          {row.pct_change != null ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` : '-'}
+                        </span>
                       </div>
-                    )}
-                    {row.range_high != null && row.range_low != null && (
-                      <div className="snap-range">
-                        振幅　{row.range_high?.toFixed(2)} ↔ {row.range_low?.toFixed(2)}
+
+                      <div className="mt-5 flex items-end justify-between gap-3">
+                        <strong className="text-2xl font-light text-slate-950">{row.price != null ? formatPrice(row.price) : '-'}</strong>
+                        {row.change != null ? (
+                          <span className="text-xs text-slate-500">
+                            {row.change > 0 ? '+' : ''}{row.change}
+                          </span>
+                        ) : null}
                       </div>
-                    )}
-                  </Card>
-                )
-              })}
+
+                      {row.range_high != null && row.range_low != null ? (
+                        <p className="mt-4 text-[11px] leading-6 text-slate-400">
+                          振幅 {row.range_high.toFixed(2)} ↔ {row.range_low.toFixed(2)}
+                        </p>
+                      ) : null}
+                    </Card>
+                  )
+                })}
+              </div>
             </Fragment>
           ))}
         </div>

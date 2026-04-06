@@ -12,6 +12,7 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "sqlite:///./test.db",
 )
+DATABASE_CONNECT_TIMEOUT = int(os.getenv("DATABASE_CONNECT_TIMEOUT", "5"))
 
 
 def _pg_url_apply_ssl_mode(url: str) -> str:
@@ -47,7 +48,7 @@ else:
         pool_size=10,
         max_overflow=20,
         pool_recycle=300,
-        connect_args={"connect_timeout": 10},
+        connect_args={"connect_timeout": DATABASE_CONNECT_TIMEOUT},
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
