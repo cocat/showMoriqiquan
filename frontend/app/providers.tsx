@@ -84,8 +84,8 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
 
   const value: AppAuthValue = {
     isLoaded: true,
-    // 与后端 SKIP_CLERK 一致：无 token 也视为已授权，避免仍出现「登录」入口和部分页面不拉数
-    isSignedIn: true,
+    // SKIP_CLERK 不等于“当前已有登录会话”；前端登录态仍以本地 app token 为准。
+    isSignedIn: !!appToken,
     authProvider: appToken ? 'phone' : 'skip',
     getToken: async (_opts?: { skipCache?: boolean }) => {
       if (appToken && isLikelyExpiredJwt(appToken)) {
@@ -100,7 +100,7 @@ function AppTokenOnlyBridge({ children }: { children: React.ReactNode }) {
     },
     exchangeExternalToken: async () => undefined,
     startCnLogin: () => undefined,
-    user: appUser ?? { firstName: '本地用户', emailAddresses: [] },
+    user: appUser,
   }
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
@@ -162,6 +162,13 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     }
   }, [persistAppSession])
 
+  const isClerkLinkFlowActive = useCallback(() => {
+    if (typeof window === 'undefined') return false
+    if (!window.location.pathname.startsWith('/clerk-sign-in')) return false
+    const params = new URLSearchParams(window.location.search)
+    return params.get('intent') === 'link'
+  }, [])
+
   // Clerk 登录后尝试 exchange（归因 / 可选 app_token）。不要用本地 app_token 短路：
   // 否则用户先手机号登录再谷歌登录时，旧 app_token 会阻止 exchange，且旧 token 还会导致 API 401。
   useEffect(() => {
@@ -169,6 +176,9 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
     if (!auth.isSignedIn) {
       exchangeAttemptedRef.current = false
       exchangeRetryOnceRef.current = false
+      return
+    }
+    if (isClerkLinkFlowActive()) {
       return
     }
     if (exchangeAttemptedRef.current) return
@@ -189,7 +199,7 @@ function ClerkAuthBridge({ children }: { children: React.ReactNode }) {
         }, 1600)
       })
     })
-  }, [auth.isLoaded, auth.isSignedIn, exchangeExternalToken])
+  }, [auth.isLoaded, auth.isSignedIn, exchangeExternalToken, isClerkLinkFlowActive])
 
   const clearSession = useCallback(async () => {
     exchangeAttemptedRef.current = false

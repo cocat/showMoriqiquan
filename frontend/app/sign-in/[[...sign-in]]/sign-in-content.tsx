@@ -10,7 +10,7 @@ import { captureAttributionIfPresent, getAttributionPayload } from '@/lib/attrib
 
 export function SignInContent() {
   const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get('redirect_url') || '/dashboard'
+  const redirectUrlRaw = searchParams.get('redirect_url')
 
   const { signInWithAppToken } = useAppAuth()
 
@@ -40,6 +40,13 @@ export function SignInContent() {
     }, 1000)
     return () => window.clearInterval(timer)
   }, [cooldownSeconds])
+
+  const redirectUrl =
+    typeof redirectUrlRaw === 'string' &&
+    redirectUrlRaw.startsWith('/') &&
+    !redirectUrlRaw.startsWith('//')
+      ? redirectUrlRaw
+      : '/dashboard'
 
   const handleSend = async () => {
     setSending(true)

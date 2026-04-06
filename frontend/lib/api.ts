@@ -273,13 +273,6 @@ export const paymentsApi = {
 export const usersApi = {
   stats: (token?: string | null) =>
     cachedFetch(`users:stats:${token ?? ''}`, async () => {
-      if (!token) {
-        return {
-          tier: 'guest',
-          daily_query_count: 0,
-          is_active: true,
-        }
-      }
       const res = await fetch(apiUrl('/api/users/me'), {
         headers: getHeaders(token),
       })

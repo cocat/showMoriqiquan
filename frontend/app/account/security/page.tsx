@@ -22,6 +22,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 export default function AccountSecurityPage() {
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
   const { isLoaded, isSignedIn, getToken } = useAppAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -105,9 +106,9 @@ export default function AccountSecurityPage() {
                     绑定境内账号
                   </Link>
                 )}
-                {!linkedProviders.has('clerk') && (
+                {!skipClerk && !linkedProviders.has('clerk') && (
                   <Link
-                    href="/sign-in?redirect_url=/account/security"
+                    href="/clerk-sign-in?intent=link&redirect_url=/account/security"
                     className="px-4 py-2 rounded border border-mentat-border text-sm text-mentat-muted hover:text-mentat-text hover:border-gold transition-colors"
                   >
                     绑定 Clerk 账号
