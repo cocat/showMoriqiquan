@@ -336,7 +336,11 @@ async def get_latest_summary(
 
     report = (
         db.query(Report)
-        .options(selectinload(Report.overview))
+        .options(
+            selectinload(Report.overview),
+            selectinload(Report.news_briefs),
+            selectinload(Report.alerts),
+        )
         .order_by(desc(Report.generated_at))
         .first()
     )
@@ -347,11 +351,26 @@ async def get_latest_summary(
     overview_content = report.overview.content if report.overview else None
     teaser = _overview_teaser(overview_content)
     if not user or tier == UserTier.GUEST:
-        result = {"report": report.to_preview(), "overview_teaser": teaser}
+        sorted_briefs = sorted(
+            report.news_briefs or [],
+            key=lambda x: x.source_count or 0,
+            reverse=True,
+        )
+        result = {
+            "report": report.to_preview(),
+            "overview_teaser": teaser,
+            "news_briefs": _serialize_briefs(sorted_briefs[:1]),
+            "alerts": [a.to_dict() for a in (report.alerts or [])[:5]],
+        }
         cache_client.set_json(cache_key, result, LATEST_SUMMARY_TTL_SECONDS)
         return result
 
-    result = {"report": report.to_dict(), "overview_teaser": teaser}
+    result = {
+        "report": report.to_dict(),
+        "overview_teaser": teaser,
+        "news_briefs": _serialize_briefs(report.news_briefs),
+        "alerts": [a.to_dict() for a in (report.alerts or [])],
+    }
     cache_client.set_json(cache_key, result, LATEST_SUMMARY_TTL_SECONDS)
     return result
 

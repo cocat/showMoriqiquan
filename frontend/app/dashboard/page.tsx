@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { SignInButton } from '@clerk/nextjs'
 import { useAppAuth } from '@/app/providers'
 import { withTokenRetry } from '@/lib/session-token'
 import { formatApiErrorForUser } from '@/lib/api-error-ui'
 import { usersApi, isNetworkError } from '@/lib/api'
-import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle, LogOut } from 'lucide-react'
+import { User as UserIcon, Crown, Calendar, Clock, AlertTriangle, LogIn, LogOut } from 'lucide-react'
 
 interface UserStats {
   tier: string
@@ -101,33 +102,47 @@ function DashboardSkeleton() {
 }
 
 function DashboardContent() {
-  const { isLoaded, user, getToken, clearSession } = useAppAuth()
+  const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
+  const { isLoaded, isSignedIn, authProvider, user, getToken, clearSession } = useAppAuth()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [syncState, setSyncState] = useState<'anonymous' | 'synced' | 'stale' | 'offline' | 'error'>('anonymous')
 
   useEffect(() => {
     if (!isLoaded) return
+    if (!isSignedIn) {
+      setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
+      setApiError('当前未登录。登录后才能同步账户权限、到期时间与完整报告访问。')
+      setSyncState('anonymous')
+      setLoading(false)
+      return
+    }
     loadStats()
-  }, [isLoaded, getToken])
+  }, [isLoaded, isSignedIn, getToken])
 
   const loadStats = async () => {
     try {
       const data = await withTokenRetry(getToken, (token) => usersApi.stats(token))
       setStats(data as UserStats)
+      setApiError(null)
+      setSyncState('synced')
     } catch (error: unknown) {
       console.error('加载用户统计失败:', error)
       const msg = (error as Error)?.message ?? ''
       if (msg.includes('401') || msg.includes('403')) {
         // 与 /api/users/me 一致：勿在鉴权失败时伪装成观察者
         setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
-        setApiError('登录已失效，请重新登录以同步账户与报告数据。')
+        setApiError('登录状态已失效，后端没有接受当前会话。请退出后重新登录。')
+        setSyncState('stale')
       } else if (isNetworkError(error)) {
-        setStats({ tier: 'observer', daily_query_count: 0, is_active: true })
-        setApiError('无法连接后端，请先启动 API')
+        setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
+        setApiError('无法连接后端，账户权限暂时无法同步。')
+        setSyncState('offline')
       } else {
         setStats({ tier: 'guest', daily_query_count: 0, is_active: true })
-        setApiError(formatApiErrorForUser(error, '账户信息加载失败，先为你展示默认权益。'))
+        setApiError(formatApiErrorForUser(error, '账户信息加载失败，当前仅展示预览权益。'))
+        setSyncState('error')
       }
     } finally {
       setLoading(false)
@@ -183,6 +198,16 @@ function DashboardContent() {
   const entitlements = getEntitlements(currentTier)
   const daysLeft = getDaysLeft(stats?.subscription_end)
   const showTrialBanner = daysLeft !== null && daysLeft <= 7
+  const sessionStatus = !isSignedIn
+    ? { label: '未登录', className: 'bg-slate-200 text-slate-600' }
+    : syncState === 'synced'
+      ? { label: `已登录 · ${authProvider === 'clerk' ? 'Clerk' : authProvider === 'phone' ? '手机号' : '会话'}`, className: 'bg-emerald-100 text-emerald-700' }
+      : syncState === 'stale'
+        ? { label: '登录失效', className: 'bg-rose-100 text-rose-700' }
+        : { label: '已登录 · 待同步', className: 'bg-amber-100 text-amber-700' }
+  const displayName = isSignedIn
+    ? user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? '已登录用户'
+    : '未登录用户'
 
   return (
     <div className="new-home-shell">
@@ -206,14 +231,34 @@ function DashboardContent() {
               >
                 查看今日前瞻
               </Link>
-              <button
-                type="button"
-                onClick={() => clearSession()}
-                className="inline-flex items-center gap-1.5 rounded-2xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
-              >
-                <LogOut className="w-4 h-4" />
-                退出登录
-              </button>
+              {isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={() => clearSession()}
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  退出登录
+                </button>
+              ) : skipClerk ? (
+                <Link
+                  href="/sign-in?redirect_url=/dashboard"
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <LogIn className="w-4 h-4" />
+                  登录
+                </Link>
+              ) : (
+                <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    登录
+                  </button>
+                </SignInButton>
+              )}
             </div>
           </div>
         </div>
@@ -236,13 +281,19 @@ function DashboardContent() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">
-                  {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? '用户'}
+                  {displayName}
                 </h2>
-                <p className="text-slate-500 text-sm">{user?.emailAddresses?.[0]?.emailAddress}</p>
+                <p className="text-slate-500 text-sm">{user?.emailAddresses?.[0]?.emailAddress ?? sessionStatus.label}</p>
               </div>
             </div>
 
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-slate-100/70 rounded-2xl">
+                <span className="text-slate-500">登录状态</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${sessionStatus.className}`}>
+                  {sessionStatus.label}
+                </span>
+              </div>
               <div className="flex items-center justify-between p-3 bg-slate-100/70 rounded-2xl">
                 <span className="text-slate-500">账号等级</span>
                 <span className={`px-3 py-1 ${tierInfo.bg} ${tierInfo.color} rounded-full text-sm font-medium flex items-center gap-1`}>

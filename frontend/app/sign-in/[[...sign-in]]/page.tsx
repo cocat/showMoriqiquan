@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import { redirect } from 'next/navigation'
 import { SignInContent } from './sign-in-content'
 
 function SignInFallback() {
@@ -14,23 +13,7 @@ function SignInFallback() {
   )
 }
 
-function safeInternalPath(raw: string | string[] | undefined): string | null {
-  const v = Array.isArray(raw) ? raw[0] : raw
-  if (typeof v !== 'string' || !v.startsWith('/') || v.startsWith('//')) return null
-  return v
-}
-
-export default async function SignInPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ redirect_url?: string | string[] }>
-}) {
-  if (process.env.NEXT_PUBLIC_SKIP_CLERK === 'true') {
-    const sp = await searchParams
-    const dest = safeInternalPath(sp.redirect_url) ?? '/reports/latest'
-    redirect(dest)
-  }
-
+export default function SignInPage() {
   return (
     <Suspense fallback={<SignInFallback />}>
       <SignInContent />

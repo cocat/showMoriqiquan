@@ -11,10 +11,13 @@ type LatestSummaryBundle = {
   report?: {
     report_date?: string
   } | null
+  overview_teaser?: string
+  alerts?: NewReportData['alerts']
+  news_briefs?: NewReportData['news_briefs']
 }
 
 export default function ReportsV2LatestPage() {
-  const { getToken } = useAppAuth()
+  const { isLoaded, isSignedIn, getToken } = useAppAuth()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<NewReportData | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
@@ -23,14 +26,35 @@ export default function ReportsV2LatestPage() {
     let cancelled = false
 
     async function load() {
+      if (!isLoaded) return
       setLoading(true)
       setErrorMessage('')
       try {
         const latest = await withTokenRetry(getToken, (token) => reportsApi.latestSummaryBundle(token))
-        const reportDate = (latest as LatestSummaryBundle)?.report?.report_date
-        if (!reportDate) {
+        const latestBundle = latest as LatestSummaryBundle & { report?: Record<string, unknown> | null }
+        const reportDate = latestBundle?.report?.report_date
+        if (!reportDate || !latestBundle.report) {
           throw new Error('暂未找到最新研报')
         }
+
+        if (!isSignedIn) {
+          if (!cancelled) {
+            setData({
+              report: latestBundle.report as NewReportData['report'],
+              overview: latestBundle.overview_teaser
+                ? { content: latestBundle.overview_teaser }
+                : null,
+              alerts: latestBundle.alerts ?? [],
+              news_briefs: latestBundle.news_briefs ?? [],
+              market_snapshots: [],
+              options: null,
+              topic_comparisons: [],
+              sentiment: null,
+            })
+          }
+          return
+        }
+
         const detail = await withTokenRetry(getToken, (token) => reportsApi.getByDate(reportDate, token))
         if (!cancelled) {
           setData(detail as NewReportData)
@@ -51,7 +75,7 @@ export default function ReportsV2LatestPage() {
     return () => {
       cancelled = true
     }
-  }, [getToken])
+  }, [getToken, isLoaded, isSignedIn])
 
   return (
     <NewReportDetailView

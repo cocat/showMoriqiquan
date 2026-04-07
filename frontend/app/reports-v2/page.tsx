@@ -60,7 +60,7 @@ function cut(text?: string | null, max = 72) {
 
 export default function ReportsV2Page() {
   const skipClerk = process.env.NEXT_PUBLIC_SKIP_CLERK === 'true'
-  const { getToken, isSignedIn } = useAppAuth()
+  const { isLoaded, getToken, isSignedIn } = useAppAuth()
   const [reports, setReports] = useState<ReportItem[]>([])
   const [details, setDetails] = useState<Record<string, ReportDetailPreview>>({})
   const [loading, setLoading] = useState(true)
@@ -72,9 +72,17 @@ export default function ReportsV2Page() {
     let cancelled = false
 
     async function load() {
+      if (!isLoaded) return
       setLoading(true)
       setError(false)
       setErrorMessage('')
+      if (!isSignedIn) {
+        setUnauthorized(true)
+        setReports([])
+        setDetails({})
+        setLoading(false)
+        return
+      }
       try {
         const data = await withTokenRetry(getToken, (token) => reportsApi.list(1, PREVIEW_SIZE, token, 'archive'))
         if (cancelled) return
@@ -123,7 +131,7 @@ export default function ReportsV2Page() {
     return () => {
       cancelled = true
     }
-  }, [getToken])
+  }, [getToken, isLoaded, isSignedIn])
 
   const featured = reports[0]
   const rest = reports.slice(1)

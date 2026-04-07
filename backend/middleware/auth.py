@@ -22,8 +22,10 @@ from models.user import User, UserTier
 
 security = HTTPBearer(auto_error=False)
 
-# 默认 false：未设置环境变量时按真实鉴权处理，避免线上漏配导致「未登录却等同管理员」
+# 默认 false：未设置环境变量时按真实鉴权处理，避免线上漏配导致「未登录却等同管理员」。
+# SKIP_CLERK 只表示本地/国内登录流程不依赖 Clerk；不要把它等同于管理员登录。
 SKIP_CLERK = os.getenv("SKIP_CLERK", "false").strip().lower() == "true"
+ALLOW_FAKE_ADMIN = os.getenv("ALLOW_FAKE_ADMIN", "false").strip().lower() == "true"
 
 CLERK_ISSUER = os.getenv("CLERK_ISSUER", "").rstrip("/")
 CLERK_JWKS_URL = os.getenv(
@@ -536,14 +538,17 @@ async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
-    if SKIP_CLERK:
+    if credentials:
+        try:
+            user, _ = resolve_user_from_token(credentials.credentials, db)
+            return user
+        except HTTPException:
+            if not (SKIP_CLERK and ALLOW_FAKE_ADMIN):
+                raise
+        except Exception:
+            if not (SKIP_CLERK and ALLOW_FAKE_ADMIN):
+                return None
+
+    if SKIP_CLERK and ALLOW_FAKE_ADMIN:
         return _FAKE_ADMIN_USER  # type: ignore[return-value]
-    if not credentials:
-        return None
-    try:
-        user, _ = resolve_user_from_token(credentials.credentials, db)
-        return user
-    except HTTPException:
-        raise
-    except Exception:
-        return None
+    return None
