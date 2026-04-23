@@ -146,7 +146,8 @@ select {
   align-items: center;
   gap: 10px;
   border-radius: 999px;
-  padding: 14px 22px;
+  padding: 13px 21px;
+  min-height: 48px;
   font-size: 14px;
   font-weight: 600;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
@@ -179,9 +180,9 @@ select {
 .new-home-insight-panel,
 .new-home-cta-panel {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 24px 50px -38px rgba(15, 23, 42, 0.25);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 50px -40px rgba(15, 23, 42, 0.22);
 }
 
 .new-home-stat-card {
@@ -206,7 +207,7 @@ select {
   position: relative;
   z-index: 1;
   border-radius: 36px;
-  padding: 28px;
+  padding: 26px;
 }
 
 .new-home-terminal-top {
@@ -239,7 +240,7 @@ select {
   border-radius: 24px;
   padding: 18px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 252, 0.82));
 }
 
 .new-home-pulse-up {
@@ -300,7 +301,7 @@ select {
 }
 
 .new-home-section {
-  padding: 72px 0;
+  padding: 76px 0;
 }
 
 .new-home-section-contrast {
@@ -314,21 +315,22 @@ select {
 
 .new-home-section-title {
   margin-top: 10px;
-  font-size: clamp(30px, 4vw, 44px);
-  line-height: 1.15;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
   color: #0f172a;
 }
 
 .new-home-section-copy {
   max-width: 640px;
   font-size: 15px;
-  line-height: 1.9;
+  line-height: 1.85;
   color: #475569;
 }
 
 .new-home-service-card {
   border-radius: 30px;
-  padding: 28px;
+  padding: 26px;
 }
 
 .new-home-service-icon {
@@ -393,7 +395,7 @@ select {
 
 .new-home-cta-panel {
   border-radius: 34px;
-  padding: 32px;
+  padding: 30px;
 }
 
 .new-home-cta-note {
@@ -412,15 +414,15 @@ select {
 .new-report-archive-card,
 .new-report-skeleton {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 24px 50px -38px rgba(15, 23, 42, 0.25);
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 50px -40px rgba(15, 23, 42, 0.22);
 }
 
 .new-report-feature-card {
   display: block;
   border-radius: 34px;
-  padding: 32px;
+  padding: 30px;
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
@@ -439,7 +441,7 @@ select {
 
 .new-report-feature-summary {
   border-radius: 26px;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.92));
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.86));
   padding: 22px;
 }
 
@@ -449,7 +451,7 @@ select {
   gap: 12px;
   border-radius: 22px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.78);
   padding: 16px 18px;
 }
 
@@ -470,10 +472,50 @@ select {
   gap: 8px;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(248, 250, 252, 0.95);
+  background: rgba(248, 250, 252, 0.9);
   padding: 9px 12px;
   font-size: 12px;
   color: #334155;
+}
+
+@media (max-width: 768px) {
+  .new-home-section {
+    padding: 58px 0;
+  }
+
+  .new-home-terminal-card,
+  .new-home-cta-panel,
+  .new-home-service-card,
+  .new-report-feature-card {
+    padding: 22px;
+  }
+
+  .new-home-section-title {
+    font-size: clamp(28px, 8vw, 36px);
+    line-height: 1.12;
+  }
+
+  .new-home-section-copy {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .new-home-primary-btn,
+  .new-home-secondary-btn,
+  .new-home-ghost-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 18px;
+  }
+
+  .new-home-pulse-card,
+  .new-report-metric-card {
+    padding: 15px 16px;
+  }
+
+  .new-report-feature-summary {
+    padding: 18px;
+  }
 }
 
 .new-report-level-chip {

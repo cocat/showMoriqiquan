@@ -2,28 +2,10 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import {
-  ArrowLeft,
-  ArrowRight,
-  BellRing,
-  CalendarRange,
-  Clock3,
-  Layers3,
-  ShieldAlert,
-  TrendingUp,
-} from 'lucide-react'
-import { SectionPlaceholder } from '@/app/components/SectionPlaceholder'
+import { ArrowLeft, ArrowRight, CalendarRange, Clock3, ShieldAlert } from 'lucide-react'
 import { useAppAuth } from '@/app/providers'
 import type { SnapshotItem } from '@/app/components/report/MarketSnapshot'
 
-const MarketSnapshot = dynamic(
-  () => import('@/app/components/report/MarketSnapshot').then((m) => m.MarketSnapshot),
-  { ssr: false }
-)
-const AlertsList = dynamic(
-  () => import('@/app/components/report/AlertsList').then((m) => m.AlertsList),
-  { ssr: false }
-)
 const NewsBriefs = dynamic(
   () => import('@/app/components/report/NewsBriefs').then((m) => m.NewsBriefs),
   { ssr: false }
@@ -42,8 +24,8 @@ export interface NewReportData {
     yellow_count?: number
   }
   sentiment?: { score: number; level: string; label?: string; description?: string } | null
-  market_snapshots?: SnapshotItem[]
   overview?: { content?: string } | null
+  market_snapshots?: SnapshotItem[]
   alerts?: Array<{
     id: number
     level: string
@@ -81,27 +63,34 @@ export interface NewReportData {
 
 type AlertRecord = NonNullable<NewReportData['alerts']>[number]
 type BriefRecord = NonNullable<NewReportData['news_briefs']>[number]
-type TopicRecord = NonNullable<NewReportData['topic_comparisons']>[number]
 
 const levelText = (level?: string) => {
   switch ((level || '').toLowerCase()) {
-    case 'danger': return '高风险'
-    case 'alert': return '警戒'
-    case 'watch': return '关注'
-    default: return '平稳'
+    case 'danger':
+      return '高风险'
+    case 'alert':
+      return '警戒'
+    case 'watch':
+      return '关注'
+    default:
+      return '平稳'
   }
 }
 
 const levelClass = (level?: string) => {
   switch ((level || '').toLowerCase()) {
-    case 'danger': return 'new-report-level-danger'
-    case 'alert': return 'new-report-level-alert'
-    case 'watch': return 'new-report-level-watch'
-    default: return 'new-report-level-calm'
+    case 'danger':
+      return 'new-report-level-danger'
+    case 'alert':
+      return 'new-report-level-alert'
+    case 'watch':
+      return 'new-report-level-watch'
+    default:
+      return 'new-report-level-calm'
   }
 }
 
-function shortText(text?: string | null, max = 88) {
+function shortText(text?: string | null, max = 90) {
   if (!text) return ''
   const clean = text.replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return clean
@@ -128,16 +117,8 @@ function splitLeadText(text?: string | null) {
   }
 }
 
-function mediumText(text?: string | null, max = 220) {
-  if (!text) return ''
-  const clean = text.replace(/\s+/g, ' ').trim()
-  if (clean.length <= max) return clean
-  return `${clean.slice(0, max).trim()}…`
-}
-
 function formatZonedTime(value?: string, locale = 'zh-CN', timeZone = 'Asia/Shanghai') {
   if (!value) return ''
-
   try {
     return new Intl.DateTimeFormat(locale, {
       month: '2-digit',
@@ -159,7 +140,6 @@ function alertTitle(item?: AlertRecord | null) {
 
 function alertAssets(item?: AlertRecord | null) {
   if (!item || !Array.isArray(item.assets)) return []
-
   return item.assets
     .map((asset) => (typeof asset === 'string' ? asset : asset?.name))
     .filter((asset): asset is string => Boolean(asset))
@@ -178,29 +158,10 @@ function buildValidationFocus(brief?: BriefRecord | null, alert?: AlertRecord | 
     return '先看美元强弱，再确认非美资产有没有同步承压。'
   }
   if (/(oil|原油|油价|地缘|中东|战争)/i.test(raw)) {
-    return '先看油价、能源股和避险资产是否一起走强。'
-  }
-  if (/(earnings|财报|指引|guidance)/i.test(raw)) {
-    return '先确认盘前指引，再看龙头股有没有带动板块重定价。'
-  }
-  if (/(科技|ai|半导体|芯片|software|cloud)/i.test(raw)) {
-    return '先盯科技龙头和主题 ETF，确认情绪是不是只停留在标题。'
+    return '先看油价、避险资产和科技股会不会同时给出反馈。'
   }
 
   return '先看指数、利率和龙头股有没有给出一致验证。'
-}
-
-function buildTopicFocus(topic?: TopicRecord | null) {
-  if (!topic?.topic_name) return '继续观察主题扩散和资金承接。'
-  return `${topic.topic_name} 是否继续扩散，取决于价格表现和资金承接能不能跟上。`
-}
-
-function riskBand(score?: number) {
-  const value = score ?? 0
-  if (value >= 65) return '65-100 高风险'
-  if (value >= 50) return '50-65 警戒'
-  if (value >= 35) return '35-50 关注'
-  return '0-35 平静'
 }
 
 export function NewReportDetailView({
@@ -224,7 +185,7 @@ export function NewReportDetailView({
   prevHref?: string | null
   nextHref?: string | null
 }) {
-  const { isLoaded, isSignedIn } = useAppAuth()
+  const { isLoaded } = useAppAuth()
 
   if (loading) {
     return (
@@ -232,11 +193,10 @@ export function NewReportDetailView({
         <section className="new-home-section !pt-10">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="new-report-skeleton h-[220px]" />
-            <div className="mt-5 grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
-              <div className="new-report-skeleton h-[280px]" />
-              <div className="new-report-skeleton h-[280px]" />
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="new-report-skeleton h-[260px]" />
+              <div className="new-report-skeleton h-[260px]" />
             </div>
-            <div className="mt-5 new-report-skeleton h-[300px]" />
           </div>
         </section>
       </div>
@@ -251,10 +211,10 @@ export function NewReportDetailView({
             <div className="new-home-cta-panel">
               <p className="new-home-kicker">Report status</p>
               <h1 className="new-home-section-title" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-                当前简报暂时无法加载。
+                当前内容暂时无法加载。
               </h1>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                {errorMessage || '请返回列表页重新选择，或稍后再试。'}
+                {errorMessage || '请稍后再试。'}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href={backHref} className="new-home-primary-btn">{backLabel}</Link>
@@ -267,81 +227,21 @@ export function NewReportDetailView({
     )
   }
 
-  const { report, sentiment, market_snapshots, overview, alerts, news_briefs, topic_comparisons } = data
-  const totalAlerts = (report.red_count ?? 0) + (report.yellow_count ?? 0)
+  const { report, sentiment, overview, alerts, news_briefs } = data
   const leadBrief = news_briefs?.[0] ?? null
   const leadAlert = alerts?.[0] ?? null
-  const sortedTopics = [...(topic_comparisons ?? [])].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-  const leadTopic = sortedTopics[0] ?? null
   const leadCopy = splitLeadText(overview?.content)
-  const secondaryLead = mediumText(leadCopy.rest || overview?.content, 220)
   const etTime = formatZonedTime(report.generated_at, 'en-US', 'America/New_York')
   const localTime = formatZonedTime(report.generated_at, 'zh-CN', 'Asia/Shanghai')
+  const score = sentiment?.score ?? report.sentiment_score ?? 0
   const firstAsset = alertAssets(leadAlert)[0] ?? '收益率 / 美元 / 龙头股'
   const validationFocus = buildValidationFocus(leadBrief, leadAlert)
-  const topicFocus = buildTopicFocus(leadTopic)
-  const score = sentiment?.score ?? report.sentiment_score ?? 0
-  const riskExplanation = sentiment?.description || `${levelText(report.sentiment_level)}区间，说明今天的波动和不确定性需要优先纳入盘前判断。`
-  const topicHighlights = sortedTopics.slice(0, 4)
-  // 临时放开登录态限制，方便直接预览吸底效果。
-  // const showStickyCta = isLoaded && !isSignedIn
-  const showStickyCta = true
-
-  const summaryMetrics = [
-    { label: '重点预警', value: `${totalAlerts} 条`, icon: BellRing, tint: 'text-rose-500' },
-    { label: '核心信号', value: `${report.item_count ?? 0} 条`, icon: Layers3, tint: 'text-amber-600' },
-    { label: '主题追踪', value: `${topic_comparisons?.length ?? 0} 个`, icon: TrendingUp, tint: 'text-slate-700' },
-  ]
-
-  const judgmentPanels = [
-    {
-      label: '今日主判断',
-      title: leadCopy.lead || '今天先不要被 headline 带着跑，先抓住真正改变市场预期的主线。',
-      body: secondaryLead || '这份日报的重点不是把新闻列出来，而是先帮用户判断这条消息到底改写了利率、美元、科技股，还是风险偏好本身。',
-    },
-    {
-      label: '当前主线',
-      title: leadBrief?.topic_name || leadTopic?.topic_name || '盘前市场主线',
-      body: shortText(leadBrief?.impact || leadBrief?.body || '今天更适合先抓主线，再展开阅读。', 100),
-    },
-    {
-      label: '最强扰动',
-      title: leadAlert ? alertTitle(leadAlert) : '暂无强风险 headline',
-      body: shortText(leadAlert?.direction_note || leadAlert?.ai_summary || '市场暂时没有出现需要立刻追踪的单点风险。', 100),
-    },
-    {
-      label: '最容易误读',
-      title: leadBrief?.topic_name ? `别只看「${leadBrief.topic_name}」headline` : '别把新闻数量当成重点',
-      body: topicFocus,
-    },
-  ]
-
-  const watchItems = [
-    {
-      label: '盘前先看',
-      title: '哪条风险被市场真正接住',
-      body: leadAlert
-        ? shortText(leadAlert.direction_note || leadAlert.ai_summary || alertTitle(leadAlert), 88)
-        : '如果今天没有强风险，就重点看主题扩散和利率方向。',
-    },
-    {
-      label: '开盘先看',
-      title: '最先确认的资产',
-      body: leadAlert
-        ? `${firstAsset} 会比 headline 更早给出验证。`
-        : '优先看美债收益率、美元与科技龙头是否同向。',
-    },
-    {
-      label: '盘中确认',
-      title: '市场有没有认真交易',
-      body: validationFocus,
-    },
-  ]
+  const showStickyCta = isLoaded
 
   return (
     <div className="new-home-shell">
       <section className="new-home-section !pt-10 sm:!pt-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3">
               <Link href={backHref} className="new-home-secondary-btn">
@@ -369,29 +269,22 @@ export function NewReportDetailView({
           </div>
 
           <div className="mt-8 new-report-feature-card !overflow-hidden !p-0">
-            <div className="grid gap-0 xl:grid-cols-[minmax(0,1.16fr)_380px]">
+            <div className="grid gap-0 xl:grid-cols-[minmax(0,1.16fr)_360px]">
               <div className="px-7 py-8 sm:px-9 sm:py-10">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="new-home-kicker">US equities daily brief</span>
+                  <span className="new-home-kicker">Today signal</span>
                   <span className={`new-report-level-chip ${levelClass(report.sentiment_level)}`}>
                     {levelText(report.sentiment_level)}
                   </span>
                 </div>
 
-                <h1 className="mt-6 max-w-4xl text-[2.35rem] font-semibold tracking-[-0.03em] text-slate-950 sm:text-[4.25rem] sm:leading-[1.02]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-                  {report.title || `${report.report_date} 美股与国际金融前瞻`}
+                <h1 className="mt-6 max-w-4xl text-[2.35rem] font-semibold tracking-[-0.03em] text-slate-950 sm:text-[4.1rem] sm:leading-[1.02]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+                  {report.title || `${report.report_date} 今日观点`}
                 </h1>
 
                 <p className="mt-5 max-w-3xl text-[15px] leading-8 text-slate-700 sm:text-lg sm:leading-9">
-                  {leadCopy.lead || '这份 briefing 的重点，不是重复 headline，而是先帮你抓住今天真正改变市场预期的主线。'}
+                  {leadCopy.lead || '先抓住今天最重要的观点，再决定要不要继续往下看 headline。'}
                 </p>
-
-                <div className="mt-6 max-w-3xl rounded-[28px] border border-stone-200/80 bg-stone-50/80 px-5 py-4 sm:px-6">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">Editor&apos;s lens</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-700">
-                    我们不是把信息重新排版，而是把 headline 翻译成市场语言，帮用户更快看清这条消息真正改变了什么。
-                  </p>
-                </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <span className="new-report-data-pill">
@@ -411,44 +304,6 @@ export function NewReportDetailView({
                     </span>
                   ) : null}
                 </div>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {summaryMetrics.map((item) => {
-                    const Icon = item.icon
-                    return (
-                      <div key={item.label} className="new-report-metric-card">
-                        <Icon className={`h-4 w-4 ${item.tint}`} />
-                        <div><p>{item.label}</p><strong>{item.value}</strong></div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {topicHighlights.length > 0 ? (
-                  <div className="mt-6 rounded-[24px] border border-slate-200/80 bg-slate-50/75 px-5 py-4">
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Topic pulse</p>
-                        <h3 className="mt-2 text-base font-semibold text-slate-950">今日主题轮动</h3>
-                      </div>
-                      <p className="text-xs text-slate-400">当天类目由摘要数据自动生成</p>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2.5">
-                      {topicHighlights.map((topic, index) => (
-                        <div
-                          key={`${topic.topic_name || 'topic'}-${index}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-2 text-sm text-slate-700 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.2)]"
-                        >
-                          <span className="font-medium">{topic.topic_name ?? '未命名主题'}</span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                            {topic.score ?? '--'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
 
               <aside className="border-t border-stone-200/80 bg-[linear-gradient(180deg,#111827,#0f172a)] px-6 py-8 text-slate-50 xl:border-l xl:border-t-0 sm:px-7">
@@ -468,33 +323,12 @@ export function NewReportDetailView({
                     <span className={`new-report-level-chip ${levelClass(report.sentiment_level)}`}>
                       {levelText(report.sentiment_level)}
                     </span>
-                    <p className="mt-3 text-sm text-slate-400">{riskBand(score)}</p>
                   </div>
                 </div>
 
-                <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500"
-                    style={{ width: `${Math.max(8, Math.min(100, score))}%` }}
-                  />
-                </div>
-
-                <p className="mt-5 text-sm leading-7 text-slate-300">{riskExplanation}</p>
-
-                <div className="mt-6 grid grid-cols-3 gap-2">
-                  <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3">
-                    <p className="text-[11px] text-slate-400">红色</p>
-                    <p className="mt-2 text-sm font-semibold text-white">{report.red_count ?? 0}</p>
-                  </div>
-                  <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3">
-                    <p className="text-[11px] text-slate-400">黄色</p>
-                    <p className="mt-2 text-sm font-semibold text-white">{report.yellow_count ?? 0}</p>
-                  </div>
-                  <div className="rounded-[18px] border border-white/10 bg-white/5 px-3 py-3">
-                    <p className="text-[11px] text-slate-400">主题</p>
-                    <p className="mt-2 text-sm font-semibold text-white">{topic_comparisons?.length ?? 0}</p>
-                  </div>
-                </div>
+                <p className="mt-5 text-sm leading-7 text-slate-300">
+                  免费先看到今天最重要的观点。会员再解锁为什么是这个观点，以及看哪里验证。
+                </p>
               </aside>
             </div>
           </div>
@@ -502,85 +336,67 @@ export function NewReportDetailView({
       </section>
 
       <section className={`new-home-section !pt-0 ${showStickyCta ? '!pb-28 sm:!pb-32' : ''}`}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="space-y-10 sm:space-y-12">
             <div className="new-home-cta-panel !rounded-[36px] border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(248,250,252,0.72))]">
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_340px]">
                 <div>
-                  <p className="new-home-kicker">Interpretation desk</p>
+                  <p className="new-home-kicker">Core view</p>
                   <h2 className="mt-3 text-[2rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.4rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-                    今日判断与验证重点
+                    今天最重要的观点
                   </h2>
                   <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-600">
-                    这一块先把我们今天的判断讲明白，再把验证顺序排出来。重点不是信息更多，而是世界被解释得更清楚。
+                    先知道今天真正重要的是什么，再往下看为什么是这个观点。
                   </p>
 
                   <div className="mt-7 grid gap-3 md:grid-cols-2">
-                    {judgmentPanels.map((panel) => (
-                      <article
-                        key={panel.label}
-                        className={`rounded-[24px] border px-5 py-5 shadow-[0_20px_40px_-34px_rgba(15,23,42,0.18)] ${
-                          panel.label === '今日主判断'
-                            ? 'border-slate-900/10 bg-slate-950 text-white'
-                            : 'border-slate-200/80 bg-white/88'
-                        }`}
-                      >
-                        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${panel.label === '今日主判断' ? 'text-amber-200/90' : 'text-slate-400'}`}>{panel.label}</p>
-                        <h3 className={`mt-3 text-lg font-semibold leading-7 ${panel.label === '今日主判断' ? 'text-white' : 'text-slate-950'}`}>{panel.title}</h3>
-                        <p className={`mt-3 text-sm leading-7 ${panel.label === '今日主判断' ? 'text-slate-300' : 'text-slate-600'}`}>{panel.body}</p>
-                      </article>
-                    ))}
+                    <article className="rounded-[24px] border border-slate-900/10 bg-slate-950 px-5 py-5 text-white shadow-[0_20px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">今天的观点</p>
+                      <h3 className="mt-3 text-lg font-semibold leading-7">{leadCopy.lead || '先看这条判断，再看新闻。'}</h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-300">
+                        {shortText(leadCopy.rest || overview?.content || '今天的重点不是 headline 数量，而是市场有没有认真交易它。', 180)}
+                      </p>
+                    </article>
+
+                    <article className="rounded-[24px] border border-slate-200/80 bg-white/88 px-5 py-5 shadow-[0_20px_40px_-34px_rgba(15,23,42,0.18)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">为什么是这个观点</p>
+                      <h3 className="mt-3 text-lg font-semibold leading-7 text-slate-950">
+                        {leadBrief?.topic_name || '市场真正交易什么'}
+                      </h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">
+                        {shortText(leadBrief?.impact || leadBrief?.body || '今天真正重要的，不是 headline 表面，而是它改变了哪条定价主线。', 170)}
+                      </p>
+                    </article>
                   </div>
                 </div>
 
                 <aside className="rounded-[32px] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.65),rgba(255,255,255,0.94))] px-6 py-6 text-slate-950">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">Today watch</p>
                   <h3 className="mt-3 text-[1.8rem] font-semibold text-slate-950 sm:text-[2rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-                    今天先盯什么
+                    今天先看什么
                   </h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    从盘前到盘中，把验证顺序排出来。这样用户读完判断，就知道接下来该去哪几个位置确认这套解读成不成立。
-                  </p>
-
                   <div className="mt-6 space-y-3">
-                    {watchItems.map((item) => (
-                      <article key={item.label} className="rounded-[22px] border border-slate-200/80 bg-white/85 px-4 py-4 shadow-[0_18px_34px_-30px_rgba(15,23,42,0.18)]">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{item.label}</p>
-                        <h4 className="mt-2 text-sm font-semibold text-slate-950">{item.title}</h4>
-                        <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-                      </article>
-                    ))}
+                    <article className="rounded-[22px] border border-slate-200/80 bg-white/85 px-4 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">盘前先看</p>
+                      <h4 className="mt-2 text-sm font-semibold text-slate-950">哪条风险被市场真正接住</h4>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">
+                        {leadAlert ? shortText(leadAlert.direction_note || leadAlert.ai_summary || alertTitle(leadAlert), 88) : '如果今天没有强风险，就重点看利率和主题扩散。'}
+                      </p>
+                    </article>
+                    <article className="rounded-[22px] border border-slate-200/80 bg-white/85 px-4 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">最先确认的资产</p>
+                      <h4 className="mt-2 text-sm font-semibold text-slate-950">{firstAsset}</h4>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">{validationFocus}</p>
+                    </article>
                   </div>
                 </aside>
               </div>
             </div>
 
-            <div className="relative pt-1 sm:pt-2">
-              <div className="min-w-0">
-                {news_briefs && news_briefs.length > 0 ? (
-                  <NewsBriefs items={news_briefs} />
-                ) : (
-                  <SectionPlaceholder title="新闻翻译台" message="暂无新闻翻译内容" className="!bg-white/70 !border-slate-200" />
-                )}
-              </div>
-
-            </div>
-
-            {market_snapshots && market_snapshots.length > 0 ? (
-              <MarketSnapshot items={market_snapshots} />
-            ) : (
-              <SectionPlaceholder title="盘前市场快照" message="暂无行情数据" className="!bg-white/70 !border-slate-200" />
-            )}
+            {news_briefs && news_briefs.length > 0 ? (
+              <NewsBriefs items={news_briefs} />
+            ) : null}
           </div>
-
-          <div className="mt-10 sm:mt-12">
-            {alerts && alerts.length > 0 ? (
-              <AlertsList items={alerts} />
-            ) : (
-              <SectionPlaceholder title="风险观察清单" message="暂无预警数据" className="!bg-white/70 !border-slate-200" />
-            )}
-          </div>
-
         </div>
       </section>
 
@@ -591,7 +407,7 @@ export function NewReportDetailView({
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">继续阅读</p>
                 <p className="mt-1 text-sm font-medium text-slate-950 sm:text-base">
-                  如果你认同这种解读世界的方式，可以继续回看历史判断，或了解会员权益。
+                  免费先看到观点，会员再看到为什么，以及后面会怎样。
                 </p>
               </div>
 
@@ -600,13 +416,13 @@ export function NewReportDetailView({
                   href={backHref}
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 >
-                  {backLabel}
+                  回看过去判断
                 </Link>
                 <Link
                   href={oppositeHref}
                   className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {oppositeLabel}
+                  解锁会员能看到的部分
                 </Link>
               </div>
             </div>

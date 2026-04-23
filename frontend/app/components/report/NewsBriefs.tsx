@@ -56,11 +56,11 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
           <div>
             <p className="new-home-kicker">Translation stage</p>
             <h2 className="mt-3 text-[2.15rem] font-semibold tracking-[-0.025em] text-slate-950 sm:text-[2.75rem]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
-              新闻翻译台
+              这几条新闻，真正该怎么看
             </h2>
           </div>
           <p className="max-w-2xl text-sm leading-8 text-slate-500">
-            这里不是把消息按栏目排开，而是把 headline 翻译成市场语言。当天展示的类目来自摘要数据里的 `topic_name`，会跟着主线变化。
+            这里不是把消息按栏目排开，而是把 headline 翻译成更有用的市场观点。当天展示的类目来自摘要数据里的 `topic_name`，会跟着主线变化。
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export function NewsBriefs({ items }: { items: BriefItem[] }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Research card</p>
-                  <h3 className="mt-2 text-[1.9rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.35rem]">{activeItem.topic_name ?? '新闻翻译'}</h3>
+                  <h3 className="mt-2 text-[1.9rem] font-semibold tracking-[-0.02em] text-slate-950 sm:text-[2.35rem]">{activeItem.topic_name ?? '观点翻译'}</h3>
                 </div>
 
                 <div className="flex items-center gap-2">

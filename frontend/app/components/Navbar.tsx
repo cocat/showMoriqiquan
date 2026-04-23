@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { TrendingUp, Menu, X, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { TrendingUp, Menu, X } from 'lucide-react'
+import { useState } from 'react'
 import { useAppAuth } from '@/app/providers'
 import { SignInButton } from '@clerk/nextjs'
 
@@ -44,17 +44,13 @@ export default function Navbar() {
   const showLogoutInSkipMode = authProvider === 'phone'
   const [mobileOpen, setMobileOpen] = useState(false)
   const [logoError, setLogoError] = useState(false)
-  const [archiveNavigating, setArchiveNavigating] = useState(false)
 
   const isReportDetail =
     pathname.startsWith('/reports/') && pathname !== '/reports' && pathname !== '/reports/latest'
   const isLatestReport = pathname === '/reports/latest' || isReportDetail
-  const isReports = pathname === '/reports'
   const isSubscribe = pathname === '/subscribe'
-
-  useEffect(() => {
-    setArchiveNavigating(false)
-  }, [pathname])
+  const isPlaybook = pathname === '/playbook'
+  const isBoard = pathname === '/signals'
 
   return (
     <nav className="border-b border-mentat-border bg-mentat-bg/95 backdrop-blur sticky top-0 z-50">
@@ -91,25 +87,13 @@ export default function Navbar() {
           {/* Desktop nav links */}
           <div className="hidden sm:flex items-center gap-1">
             <NavLink href="/reports/latest" active={isLatestReport}>
-              今日前瞻
+              今日信号
             </NavLink>
-            <NavLink
-              href="/reports"
-              active={isReports}
-              onClick={() => setArchiveNavigating(true)}
-              disabled={archiveNavigating}
-            >
-              {archiveNavigating ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  打开中...
-                </span>
-              ) : (
-                '历史简报'
-              )}
+            <NavLink href="/playbook" active={isPlaybook}>
+              本周 Playbook
             </NavLink>
-            <NavLink href="/#topics" active={false}>
-              专题追踪
+            <NavLink href="/signals" active={isBoard}>
+              信号看板
             </NavLink>
             <NavLink href="/subscribe" active={isSubscribe}>
               订阅会员
@@ -195,35 +179,21 @@ export default function Navbar() {
             className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
             onClick={() => setMobileOpen(false)}
           >
-            今日前瞻
+            今日信号
           </Link>
           <Link
-            href="/reports"
-            className={`block px-3 py-2 text-sm rounded transition-colors ${
-              archiveNavigating
-                ? 'text-mentat-muted pointer-events-none opacity-70'
-                : 'text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card'
-            }`}
-            onClick={() => {
-              setArchiveNavigating(true)
-              setMobileOpen(false)
-            }}
-          >
-            {archiveNavigating ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                打开中...
-              </span>
-            ) : (
-              '历史简报'
-            )}
-          </Link>
-          <Link
-            href="/#topics"
+            href="/playbook"
             className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
             onClick={() => setMobileOpen(false)}
           >
-            专题追踪
+            本周 Playbook
+          </Link>
+          <Link
+            href="/signals"
+            className="block px-3 py-2 text-sm text-mentat-muted hover:text-mentat-text hover:bg-mentat-bg-card rounded transition-colors"
+            onClick={() => setMobileOpen(false)}
+          >
+            信号看板
           </Link>
           <Link
             href="/subscribe"
